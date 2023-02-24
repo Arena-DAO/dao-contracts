@@ -1,4 +1,4 @@
-use std::env;
+use std::{collections::HashSet, env};
 
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
@@ -87,16 +87,37 @@ fn execute_migration_v1_v2(
         return Err(ContractError::Unauthorized {});
     }
 
+    //Check if params doesn't have duplicates
+    let mut uniq = HashSet::new();
+    if !migration_params
+        .proposal_params
+        .iter()
+        .all(|(addr, _)| uniq.insert(addr))
+    {
+        return Err(ContractError::DuplicateProposalParams);
+    }
+
     // List of code ids pairs we got and the migration msg of each one of them.
-    let proposal_pair = CodeIdPair::new(
-        v1_code_ids.proposal_single,
-        v2_code_ids.proposal_single,
-        MigrationMsgs::DaoProposalSingle(dao_proposal_single::msg::MigrateMsg::FromV1 {
-            close_proposal_on_execution_failure: migration_params
-                .close_proposal_on_execution_failure,
-            pre_propose_info: migration_params.pre_propose_info,
-        }),
-    ); // cw-proposal-single -> dao_proposal_single
+    let proposal_pairs: Vec<(String, CodeIdPair)> = migration_params
+        .proposal_params
+        .iter()
+        .map(|(addr, proposal_params)| {
+            (
+                addr.clone(),
+                CodeIdPair::new(
+                    v1_code_ids.proposal_single,
+                    v2_code_ids.proposal_single,
+                    MigrationMsgs::DaoProposalSingle(
+                        dao_proposal_single::msg::MigrateMsg::FromV1 {
+                            close_proposal_on_execution_failure: proposal_params
+                                .close_proposal_on_execution_failure,
+                            pre_propose_info: proposal_params.pre_propose_info.clone(),
+                        },
+                    ),
+                ),
+            )
+        })
+        .collect(); // cw-proposal-single -> dao_proposal_single
     let voting_pairs: Vec<CodeIdPair> = vec![
         CodeIdPair::new(
             v1_code_ids.cw4_voting,
@@ -209,15 +230,29 @@ fn execute_migration_v1_v2(
         },
     )?;
 
+    // We remove 1 because migration module is a proposal module, and we skip it.
+    if proposal_modules.len() - 1 != (proposal_pairs.len()) {
+        return Err(ContractError::MigrationParamsNotEqualProposalModulesLength);
+    }
+
     // Loop over proposals and verify that they are valid DAO DAO modules
     // and set them to be migrated.
     proposal_modules
-        .into_iter()
+        .iter()
         .try_for_each(|module| -> Result<(), ContractError> {
             // Instead of doing 2 loops, just ignore our module, we don't care about the vec after this.
             if module.address == env.contract.address {
                 return Ok(());
             }
+
+            let proposal_pair = proposal_pairs
+                .iter()
+                .find(|(addr, _)| addr == module.address.as_str())
+                .ok_or(ContractError::ProposalModuleNotFoundInParams {
+                    addr: module.address.clone().into(),
+                })?
+                .1
+                .clone();
 
             // Get the code id of the module
             let proposal_code_id = if let Ok(contract_info) = deps
@@ -242,7 +277,7 @@ fn execute_migration_v1_v2(
                     }
                     .into(),
                 );
-                modules_addrs.proposals.push(module.address);
+                modules_addrs.proposals.push(module.address.clone());
                 Ok(())
             } else {
                 // Return false because we couldn't find the code id on our list.

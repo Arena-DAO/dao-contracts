@@ -1,4 +1,7 @@
-use cosmwasm_std::{to_binary, Addr, Empty, Uint128, WasmMsg};
+use cosmwasm_std::{
+    to_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult, Uint128,
+    WasmMsg,
+};
 use cw_multi_test::{next_block, App, Contract, ContractWrapper, Executor};
 use dao_core::query::SubDao;
 use dao_testing::contracts::{
@@ -6,7 +9,10 @@ use dao_testing::contracts::{
     dao_core_contract, proposal_single_contract, v1_dao_core_contract, v1_proposal_single_contract,
 };
 
-use crate::types::{V1CodeIds, V2CodeIds};
+use crate::{
+    types::{V1CodeIds, V2CodeIds},
+    ContractError,
+};
 
 pub(crate) const SENDER_ADDR: &str = "creator";
 
@@ -26,10 +32,10 @@ pub struct ExecuteParams {
     pub migrate_cw20: Option<bool>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ModuleAddrs {
     pub core: Addr,
-    pub proposal: Addr,
+    pub proposals: Vec<Addr>,
     pub voting: Addr,
     pub staking: Option<Addr>,
     pub token: Option<Addr>,
@@ -114,9 +120,8 @@ pub fn get_cw4_init_msg(code_ids: CodeIds) -> cw4_voting_v1::msg::InstantiateMsg
 
 pub fn get_module_addrs(app: &mut App, core_addr: Addr) -> ModuleAddrs {
     // Get modules addrs
-    let proposal_addr = {
-        let modules: Vec<Addr> = app
-            .wrap()
+    let proposal_addrs: Vec<Addr> = {
+        app.wrap()
             .query_wasm_smart(
                 &core_addr,
                 &cw_core_v1::msg::QueryMsg::ProposalModules {
@@ -124,9 +129,7 @@ pub fn get_module_addrs(app: &mut App, core_addr: Addr) -> ModuleAddrs {
                     limit: None,
                 },
             )
-            .unwrap();
-        assert!(modules.len() == 1);
-        modules.into_iter().next().unwrap()
+            .unwrap()
     };
 
     let voting_addr: Addr = app
@@ -152,22 +155,22 @@ pub fn get_module_addrs(app: &mut App, core_addr: Addr) -> ModuleAddrs {
 
     ModuleAddrs {
         core: core_addr,
-        proposal: proposal_addr,
+        proposals: proposal_addrs,
         staking: staking_addr,
         voting: voting_addr,
         token: token_addr,
     }
 }
 
-pub fn set_dummy_proposal(app: &mut App, sender: Addr, addrs: ModuleAddrs) {
+pub fn set_dummy_proposal(app: &mut App, sender: Addr, core_addr: Addr, proposal_addr: Addr) {
     app.execute_contract(
         sender,
-        addrs.proposal.clone(),
+        proposal_addr,
         &cw_proposal_single_v1::msg::ExecuteMsg::Propose {
             title: "t".to_string(),
             description: "d".to_string(),
             msgs: vec![WasmMsg::Execute {
-                contract_addr: addrs.core.to_string(),
+                contract_addr: core_addr.to_string(),
                 msg: to_binary(&cw_core_v1::msg::ExecuteMsg::UpdateCw20List {
                     to_add: vec![],
                     to_remove: vec![],
@@ -206,7 +209,7 @@ pub fn set_cw20_to_dao(app: &mut App, sender: Addr, addrs: ModuleAddrs) {
 
     app.execute_contract(
         sender.clone(),
-        addrs.proposal.clone(),
+        addrs.proposals[0].clone(),
         &cw_proposal_single_v1::msg::ExecuteMsg::Propose {
             title: "t".to_string(),
             description: "d".to_string(),
@@ -227,7 +230,7 @@ pub fn set_cw20_to_dao(app: &mut App, sender: Addr, addrs: ModuleAddrs) {
 
     app.execute_contract(
         sender.clone(),
-        addrs.proposal.clone(),
+        addrs.proposals[0].clone(),
         &cw_proposal_single_v1::msg::ExecuteMsg::Vote {
             proposal_id: 1,
             vote: voting_v1::Vote::Yes,
@@ -238,7 +241,7 @@ pub fn set_cw20_to_dao(app: &mut App, sender: Addr, addrs: ModuleAddrs) {
 
     app.execute_contract(
         sender,
-        addrs.proposal.clone(),
+        addrs.proposals[0].clone(),
         &cw_proposal_single_v1::msg::ExecuteMsg::Execute { proposal_id: 1 },
         &[],
     )
@@ -322,4 +325,28 @@ pub fn dao_voting_cw4_contract() -> Box<dyn Contract<Empty>> {
     .with_reply(dao_voting_cw4::contract::reply)
     .with_migrate(dao_voting_cw4::contract::migrate);
     Box::new(contract)
+}
+
+fn some_init(
+    _deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    _msg: (),
+) -> Result<Response, ContractError> {
+    Ok(Response::default())
+}
+fn some_execute(
+    _deps: DepsMut,
+    _env: Env,
+    _info: MessageInfo,
+    _msg: (),
+) -> Result<Response, ContractError> {
+    Ok(Response::default())
+}
+fn some_query(_deps: Deps, _env: Env, _msg: ()) -> StdResult<Binary> {
+    Ok(Binary::default())
+}
+
+pub fn demo_contract() -> Box<dyn Contract<Empty>> {
+    Box::new(ContractWrapper::new(some_execute, some_init, some_query))
 }
