@@ -1,6 +1,8 @@
 //! Types related to the pre-propose module. Motivation:
 //! <https://github.com/DA0-DA0/dao-contracts/discussions/462>.
 
+use std::collections::HashSet;
+
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Empty, StdResult, SubMsg};
 use dao_interface::state::ModuleInstantiateInfo;
@@ -109,11 +111,11 @@ impl PreProposeSubmissionPolicy {
             denylist,
         } = self
         {
-            let allowlist = allowlist.as_deref().unwrap_or_default();
-            let denylist = denylist.as_deref().unwrap_or_default();
+            let allowlist: HashSet<_> = allowlist.into_iter().flatten().collect();
+            let denylist: HashSet<_> = denylist.into_iter().flatten().collect();
 
             // prevent allowlist and denylist from overlapping
-            if denylist.iter().any(|a| allowlist.iter().any(|b| a == b)) {
+            if !allowlist.is_disjoint(&denylist) {
                 return Err(PreProposeSubmissionPolicyError::DenylistAllowlistOverlap {});
             }
 
