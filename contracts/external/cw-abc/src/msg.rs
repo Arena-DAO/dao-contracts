@@ -55,6 +55,7 @@ pub enum UpdatePhaseConfigMsg {
 
 #[cw_ownable::cw_ownable_execute]
 #[cw_serde]
+#[derive(cw_orch::ExecuteFns)]
 pub enum ExecuteMsg {
     /// Buy will attempt to purchase as many supply tokens as possible.
     /// You must send only reserve tokens.
@@ -107,7 +108,7 @@ pub enum ExecuteMsg {
 
 #[cw_ownable::cw_ownable_query]
 #[cw_serde]
-#[derive(QueryResponses)]
+#[derive(QueryResponses, cw_orch::QueryFns)]
 pub enum QueryMsg {
     /// Returns the reserve and supply quantities, as well as the spot price to buy 1 token
     /// Returns [`CurveInfoResponse`]

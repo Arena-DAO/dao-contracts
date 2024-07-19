@@ -1022,12 +1022,14 @@ dependencies = [
  "cw-address-like",
  "cw-curves",
  "cw-multi-test",
+ "cw-orch",
  "cw-ownable",
  "cw-paginate-storage 2.5.0",
  "cw-storage-plus 1.2.0",
  "cw-tokenfactory-issuer",
  "cw-utils 1.0.3",
  "cw2 1.1.2",
+ "dao-cw-orch",
  "dao-interface",
  "dao-proposal-single",
  "dao-testing",
@@ -2118,6 +2120,7 @@ name = "dao-cw-orch"
 version = "2.5.0"
 dependencies = [
  "cosmwasm-std",
+ "cw-abc",
  "cw-orch",
  "cw20-stake 2.5.0",
  "cw20-stake-external-rewards",
