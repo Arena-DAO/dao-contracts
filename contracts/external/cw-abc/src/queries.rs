@@ -24,7 +24,7 @@ pub fn query_curve_info(deps: Deps, curve_fn: CurveFn) -> StdResult<CurveInfoRes
 
     // This we can get from the local digits stored in instantiate
     let curve = curve_fn(decimals);
-    let spot_price = curve.spot_price(supply);
+    let spot_price = curve.spot_price(supply)?;
 
     Ok(CurveInfoResponse {
         reserve,
