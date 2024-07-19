@@ -1,16 +1,16 @@
 use cw_orch::{interface, prelude::*};
 
-use dao_voting_cw4::contract::{execute, instantiate, migrate, query, reply};
-use dao_voting_cw4::msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};
+use cw_tokenfactory_issuer::contract::{execute, instantiate, migrate, query, reply};
+use cw_tokenfactory_issuer::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
-#[interface(InstantiateMsg, ExecuteMsg, QueryMsg, MigrateMsg)]
-pub struct DaoVotingCw4;
+#[interface(InstantiateMsg, ExecuteMsg, QueryMsg, Empty)]
+pub struct DaoExternalTokenfactoryIssuer;
 
-impl<Chain> Uploadable for DaoVotingCw4<Chain> {
+impl<Chain> Uploadable for DaoExternalTokenfactoryIssuer<Chain> {
     /// Return the path to the wasm file corresponding to the contract
     fn wasm(_chain: &ChainInfoOwned) -> WasmPath {
         artifacts_dir_from_workspace!()
-            .find_wasm_path("dao_voting_cw4")
+            .find_wasm_path("dao_tokenfactory_issuer")
             .unwrap()
     }
     /// Returns a CosmWasm contract wrapper
