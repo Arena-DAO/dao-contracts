@@ -208,6 +208,7 @@ pub fn do_query(deps: Deps, _env: Env, msg: QueryMsg, curve_fn: CurveFn) -> StdR
         QueryMsg::SellQuote { payment } => {
             to_json_binary(&queries::query_sell_quote(deps, payment)?)
         }
+        QueryMsg::SupplyDenom {} => to_json_binary(&SUPPLY_DENOM.load(deps.storage)?),
     }
 }
 

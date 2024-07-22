@@ -33,12 +33,14 @@ thiserror = { workspace = true }
 dao-dao-macros = { workspace = true }
 dao-interface = { workspace = true }
 dao-voting = { workspace = true }
-cw-tokenfactory-issuer = { workspace = true, features = ["library"] }
+cw-tokenfactory-issuer = { workspace = true, features = [
+    "library",
+    "osmosis_tokenfactory",
+] }
 
 [dev-dependencies]
 anyhow = { workspace = true }
 cw-multi-test = { workspace = true }
-cw-tokenfactory-issuer = { workspace = true }
 dao-proposal-single = { workspace = true }
 dao-proposal-hook-counter = { workspace = true }
 dao-testing = { workspace = true, features = ["test-tube"] }

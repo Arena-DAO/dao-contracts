@@ -1,6 +1,6 @@
 use cw_orch::{interface, prelude::*};
 
-use cw_abc::contract::{execute, instantiate, query};
+use cw_abc::contract::{execute, instantiate, query, reply};
 use cw_abc::msg::{ExecuteMsg, InstantiateMsg, QueryMsg};
 
 #[interface(InstantiateMsg, ExecuteMsg, QueryMsg, Empty)]
@@ -15,6 +15,6 @@ impl<Chain> Uploadable for CwAbc<Chain> {
     }
     /// Returns a CosmWasm contract wrapper
     fn wrapper() -> Box<dyn MockContract<Empty>> {
-        Box::new(ContractWrapper::new_with_empty(execute, instantiate, query))
+        Box::new(ContractWrapper::new_with_empty(execute, instantiate, query).with_reply(reply))
     }
 }

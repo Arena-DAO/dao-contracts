@@ -59,12 +59,15 @@ pub enum UpdatePhaseConfigMsg {
 pub enum ExecuteMsg {
     /// Buy will attempt to purchase as many supply tokens as possible.
     /// You must send only reserve tokens.
+    #[cw_orch(payable)]
     Buy {},
     /// Sell burns supply tokens in return for the reserve token.
     /// You must send only supply tokens.
+    #[cw_orch(payable)]
     Sell {},
     /// Donate will donate tokens to the funding pool.
     /// You must send only reserve tokens.
+    #[cw_orch(payable)]
     Donate {},
     /// Withdraw will withdraw tokens from the funding pool.
     Withdraw {
@@ -170,6 +173,9 @@ pub enum QueryMsg {
     /// Returns the address of the cw-tokenfactory-issuer contract
     #[returns(::cosmwasm_std::Addr)]
     TokenContract {},
+    /// Returns the supply denom
+    #[returns(String)]
+    SupplyDenom {},
 }
 
 #[cw_serde]
