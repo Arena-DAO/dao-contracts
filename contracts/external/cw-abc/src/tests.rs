@@ -629,6 +629,111 @@ fn test_dao_hatcher_functionality() -> Result<()> {
     Ok(())
 }
 
+#[test]
+pub fn arena() -> Result<()> {
+    let (mut chain, abc, token_issuer_code_id, accounts) = setup()?;
+    let dao = chain.init_account(coins(1_000_000_000_000, TEST_RESERVE_DENOM))?;
+
+    let msg = InstantiateMsg {
+        token_issuer_code_id,
+        funding_pool_forwarding: None,
+        supply: SupplyToken {
+            subdenom: "uarena".to_string(),
+            metadata: Some(NewDenomMetadata {
+                name: "Arena Token".to_string(),
+                description: "The governance token of the Arena DAO".to_string(),
+                symbol: "ARENA".to_string(),
+                display: "arena".to_string(),
+                additional_denom_units: Some(vec![DenomUnit {
+                    denom: "arena".to_string(),
+                    exponent: 6,
+                    aliases: vec![],
+                }]),
+            }),
+            decimals: 6,
+            max_supply: Some(Uint128::new(1_000_000_000_000)),
+        },
+        reserve: ReserveToken {
+            denom: TEST_RESERVE_DENOM.to_string(),
+            decimals: 6,
+        },
+        curve_type: CurveType::SquareRoot {
+            slope: Uint128::new(3),
+            scale: 7,
+        },
+        phase_config: CommonsPhaseConfig {
+            hatch: HatchConfig {
+                contribution_limits: MinMax {
+                    min: Uint128::new(100_000),
+                    max: Uint128::new(1_000_000),
+                },
+                initial_raise: MinMax {
+                    min: Uint128::zero(),
+                    max: Uint128::new(92_951_601),
+                },
+                entry_fee: Decimal::zero(),
+            },
+            open: OpenConfig {
+                entry_fee: Decimal::from_atomics(99999u128, 5)?,
+                exit_fee: Decimal::zero(),
+            },
+            closed: ClosedConfig {},
+        },
+        hatcher_allowlist: Some(vec![
+            HatcherAllowlistEntryMsg {
+                addr: accounts.creator.address(),
+                config: HatcherAllowlistConfigMsg {
+                    config_type: HatcherAllowlistConfigType::Address {},
+                    contribution_limits_override: Some(MinMax {
+                        min: Uint128::zero(),
+                        max: Uint128::new(17_888_544),
+                    }),
+                },
+            },
+            HatcherAllowlistEntryMsg {
+                addr: dao.address(),
+                config: HatcherAllowlistConfigMsg {
+                    config_type: HatcherAllowlistConfigType::Address {},
+                    contribution_limits_override: Some(MinMax {
+                        min: Uint128::zero(),
+                        max: Uint128::new(75_063_057),
+                    }),
+                },
+            },
+        ]),
+    };
+
+    abc.call_as(&dao).instantiate(&msg, None, None)?;
+
+    // Founder allocation
+    abc.call_as(&accounts.creator)
+        .buy(&coins(17_888_544, TEST_RESERVE_DENOM))?;
+
+    // Get denom
+    let supply_denom = abc.supply_denom()?;
+
+    // Check balance
+    let balance = chain.query_balance(&accounts.creator.address(), &supply_denom)?;
+    assert_eq!(balance, Uint128::new(200_000_001_000));
+
+    // Arena Gladiators + Treasury
+    abc.call_as(&dao)
+        .buy(&coins(75_063_057, TEST_RESERVE_DENOM))?;
+
+    // Check we're in the open phase now
+    let phase_config = abc.phase_config()?;
+    assert_eq!(phase_config.phase, CommonsPhase::Open);
+
+    // Check the current supply
+    let curve_info = abc.curve_info()?;
+    assert_eq!(curve_info.supply, Uint128::new(600_000_002_000));
+
+    // User buys
+    //abc.call_as(&accounts.buyer).buy(&coins())
+
+    Ok(())
+}
+
 // Helper function to setup a DAO
 fn setup_dao(
     dao_core: &DaoDaoCore<OsmosisTestTube>,
