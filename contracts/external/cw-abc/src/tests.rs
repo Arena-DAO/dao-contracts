@@ -633,6 +633,7 @@ fn test_dao_hatcher_functionality() -> Result<()> {
 pub fn arena() -> Result<()> {
     let (mut chain, abc, token_issuer_code_id, accounts) = setup()?;
     let dao = chain.init_account(coins(1_000_000_000_000, TEST_RESERVE_DENOM))?;
+    let buyer = chain.init_account(coins(1_000_000_000_000_000, TEST_RESERVE_DENOM))?;
 
     let msg = InstantiateMsg {
         token_issuer_code_id,
@@ -674,7 +675,7 @@ pub fn arena() -> Result<()> {
                 entry_fee: Decimal::zero(),
             },
             open: OpenConfig {
-                entry_fee: Decimal::from_atomics(99999u128, 5)?,
+                entry_fee: Decimal::from_atomics(999965u128, 6)?,
                 exit_fee: Decimal::zero(),
             },
             closed: ClosedConfig {},
@@ -728,8 +729,23 @@ pub fn arena() -> Result<()> {
     let curve_info = abc.curve_info()?;
     assert_eq!(curve_info.supply, Uint128::new(600_000_002_000));
 
-    // User buys
-    //abc.call_as(&accounts.buyer).buy(&coins())
+    // User buys the rest
+    abc.call_as(&buyer)
+        .buy(&coins(3_058_525_685_714, TEST_RESERVE_DENOM))?;
+
+    // Check the supply
+    let curve_info = abc.curve_info()?;
+    assert_eq!(curve_info.supply, Uint128::new(1_000_000_000_000));
+
+    // Check the funding pool
+    assert_eq!(curve_info.funding, Uint128::new(3_058_418_637_315));
+
+    // Max supply reached
+    let result = abc.call_as(&buyer).buy(&coins(1, TEST_RESERVE_DENOM));
+    assert_that!(result.unwrap_err().to_string()).contains("Cannot mint more tokens");
+
+    // Sell some into the curve
+    abc.call_as(&dao).sell(&coins(1_000_000, supply_denom.clone()))?;
 
     Ok(())
 }
