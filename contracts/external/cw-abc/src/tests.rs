@@ -745,7 +745,12 @@ pub fn arena() -> Result<()> {
     assert_that!(result.unwrap_err().to_string()).contains("Cannot mint more tokens");
 
     // Sell some into the curve
-    abc.call_as(&dao).sell(&coins(1_000_000, supply_denom.clone()))?;
+    abc.call_as(&dao)
+        .sell(&coins(1_000_000, supply_denom.clone()))?;
+
+    // Buying a very small amount results in rounding issues
+    let result = abc.call_as(&buyer).buy(&coins(1000, TEST_RESERVE_DENOM));
+    assert!(result.is_err());
 
     Ok(())
 }
