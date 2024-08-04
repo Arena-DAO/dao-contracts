@@ -6,22 +6,32 @@ use crate::{
     Curve, DecimalPlaces,
 };
 
-/// spot_price is slope * supply
+/// Implements a Linear bonding curve where spot price is slope * supply
 #[derive(Debug)]
 pub struct Linear {
+    /// The slope of the linear curve
     pub slope: Decimal,
+    /// Decimal places for normalization between supply and reserve tokens
     pub normalize: DecimalPlaces,
 }
 
 impl Linear {
+    /// Creates a new Linear curve instance
+    ///
+    /// # Arguments
+    ///
+    /// * `slope` - The slope of the curve
+    /// * `normalize` - DecimalPlaces for normalization between supply and reserve tokens
     pub fn new(slope: Decimal, normalize: DecimalPlaces) -> Self {
         Self { slope, normalize }
     }
 }
 
 impl Curve for Linear {
+    /// Calculates the spot price for a given supply
+    ///
+    /// The spot price is calculated as: f(x) = slope * supply
     fn spot_price(&self, supply: Uint128) -> StdResult<StdDecimal> {
-        // f(x) = supply * self.value
         let out = self
             .normalize
             .from_supply(supply)?
@@ -30,8 +40,10 @@ impl Curve for Linear {
         decimal_to_std(out)
     }
 
+    /// Calculates the reserve for a given supply
+    ///
+    /// The reserve is calculated as: f(x) = (slope * supply * supply) / 2
     fn reserve(&self, supply: Uint128) -> StdResult<Uint128> {
-        // f(x) = self.slope * supply * supply / 2
         let normalized = self.normalize.from_supply(supply)?;
         let square = normalized
             .checked_mul(normalized)
@@ -44,9 +56,13 @@ impl Curve for Linear {
         self.normalize.to_reserve(reserve)
     }
 
+    /// Calculates the supply for a given reserve
+    ///
+    /// The supply is calculated as: f(x) = sqrt(2 * reserve / slope)
     fn supply(&self, reserve: Uint128) -> StdResult<Uint128> {
-        // f(x) = (2 * reserve / self.slope) ^ 0.5
-        let doubled_reserve = reserve.checked_add(reserve)?;
+        let doubled_reserve = reserve
+            .checked_add(reserve)
+            .map_err(|_| StdError::generic_err("Overflow in doubling reserve"))?;
         let square = self
             .normalize
             .from_reserve(doubled_reserve)?
