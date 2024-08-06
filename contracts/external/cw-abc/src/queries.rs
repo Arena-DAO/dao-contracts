@@ -174,7 +174,6 @@ pub fn query_dump_state(deps: Deps, curve_fn: CurveFn) -> StdResult<DumpStateRes
     Ok(DumpStateResponse {
         supply_denom: SUPPLY_DENOM.load(deps.storage)?,
         phase_config: query_phase_config(deps)?,
-        phase: PHASE.load(deps.storage)?,
         is_paused: IS_PAUSED.load(deps.storage)?,
         curve_info: query_curve_info(deps, curve_fn)?,
         curve_type: CURVE_TYPE.load(deps.storage)?,

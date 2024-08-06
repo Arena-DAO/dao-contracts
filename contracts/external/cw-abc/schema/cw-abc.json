@@ -1797,7 +1797,6 @@
         "curve_info",
         "curve_type",
         "is_paused",
-        "phase",
         "phase_config",
         "supply_denom"
       ],
@@ -1820,9 +1819,6 @@
               "type": "null"
             }
           ]
-        },
-        "phase": {
-          "$ref": "#/definitions/CommonsPhase"
         },
         "phase_config": {
           "$ref": "#/definitions/CommonsPhaseConfigResponse"

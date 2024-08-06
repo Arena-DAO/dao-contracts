@@ -185,7 +185,6 @@ pub enum QueryMsg {
 pub struct DumpStateResponse {
     pub supply_denom: String,
     pub phase_config: CommonsPhaseConfigResponse,
-    pub phase: CommonsPhase,
     pub is_paused: bool,
     pub curve_info: CurveInfoResponse,
     pub curve_type: CurveType,
