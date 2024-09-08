@@ -18,7 +18,7 @@ resolver = "2"
 edition = "2021"
 license = "BSD-3-Clause"
 repository = "https://github.com/DA0-DA0/dao-contracts"
-version = "2.5.0-callbacks" # patched version for message callbacks https://github.com/DA0-DA0/dao-contracts/pull/879
+version = "2.5.0-callbacks"                             # patched version for message callbacks https://github.com/DA0-DA0/dao-contracts/pull/879
 
 [profile.release]
 codegen-units = 1
@@ -103,6 +103,7 @@ cw-wormhole = { path = "./packages/cw-wormhole", version = "2.5.0-callbacks" }
 cw20-stake = { path = "./contracts/staking/cw20-stake", version = "2.5.0-callbacks" }
 cw721-controllers = { path = "./packages/cw721-controllers", version = "2.5.0-callbacks" }
 cw721-roles = { path = "./contracts/external/cw721-roles", version = "2.5.0-callbacks" }
+dao-callback-messages = { path = "./contracts/test/dao-callback-messages", version = "2.5.0-callbacks" }
 dao-cw721-extensions = { path = "./packages/dao-cw721-extensions", version = "2.5.0-callbacks" }
 dao-dao-core = { path = "./contracts/dao-dao-core", version = "2.5.0-callbacks" }
 dao-dao-macros = { path = "./packages/dao-dao-macros", version = "2.5.0-callbacks" }
