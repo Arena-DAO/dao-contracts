@@ -13,4 +13,5 @@ pub mod contracts;
 pub use tests::*;
 
 #[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "test-tube")]
 pub mod test_tube;

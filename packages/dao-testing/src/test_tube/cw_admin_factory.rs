@@ -26,6 +26,7 @@ impl<'a> CwAdminFactory<'a> {
         funds: &[Coin],
     ) -> Result<Self, RunnerError> {
         let wasm = Wasm::new(app);
+
         let code_id = wasm
             .store_code(&Self::get_wasm_byte_code(), None, signer)?
             .data
