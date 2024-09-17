@@ -165,7 +165,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     // default implementation stores curve info as enum, you can do something else in a derived
     // contract and just pass in your custom curve to do_execute
     let curve_type = CURVE_TYPE.load(deps.storage)?;
-    let curve_fn = curve_type.to_curve_fn();
+    let curve_fn = curve_type.to_curve_fn()?;
     do_query(deps, env, msg, curve_fn)
 }
 

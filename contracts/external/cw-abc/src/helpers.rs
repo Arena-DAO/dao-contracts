@@ -16,7 +16,7 @@ pub fn calculate_buy_quote(
     phase_config: &CommonsPhaseConfig,
 ) -> Result<QuoteResponse, ContractError> {
     // Generate the bonding curve
-    let curve_fn = curve_type.to_curve_fn();
+    let curve_fn = curve_type.to_curve_fn()?;
     let curve = curve_fn(curve_state.decimals);
 
     // Calculate the reserved and funded amounts based on the Commons phase
@@ -50,7 +50,7 @@ pub fn calculate_sell_quote(
     phase_config: &CommonsPhaseConfig,
 ) -> Result<QuoteResponse, ContractError> {
     // Generate the bonding curve
-    let curve_fn = curve_type.to_curve_fn();
+    let curve_fn = curve_type.to_curve_fn()?;
     let curve = curve_fn(curve_state.decimals);
 
     // Reduce the supply by the amount being burned

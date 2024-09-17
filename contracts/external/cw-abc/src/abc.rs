@@ -1,5 +1,5 @@
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{ensure, Decimal, Uint128};
+use cosmwasm_std::{ensure, Decimal, StdResult, Uint128};
 use cw_curves::{
     curves::{Constant, Linear, SquareRoot},
     utils::decimal,
@@ -194,25 +194,24 @@ pub enum CurveType {
 }
 
 impl CurveType {
-    pub fn to_curve_fn(&self) -> CurveFn {
+    pub fn to_curve_fn(&self) -> StdResult<CurveFn> {
         match self.clone() {
             CurveType::Constant { value, scale } => {
-                let calc = move |places| -> Box<dyn Curve> {
-                    Box::new(Constant::new(decimal(value, scale).unwrap(), places))
-                };
-                Box::new(calc)
+                let value = decimal(value, scale)?;
+                let calc =
+                    move |places| -> Box<dyn Curve> { Box::new(Constant::new(value, places)) };
+                Ok(Box::new(calc))
             }
             CurveType::Linear { slope, scale } => {
-                let calc = move |places| -> Box<dyn Curve> {
-                    Box::new(Linear::new(decimal(slope, scale).unwrap(), places))
-                };
-                Box::new(calc)
+                let slope = decimal(slope, scale)?;
+                let calc = move |places| -> Box<dyn Curve> { Box::new(Linear::new(slope, places)) };
+                Ok(Box::new(calc))
             }
             CurveType::SquareRoot { slope, scale } => {
-                let calc = move |places| -> Box<dyn Curve> {
-                    Box::new(SquareRoot::new(decimal(slope, scale).unwrap(), places))
-                };
-                Box::new(calc)
+                let slope = decimal(slope, scale)?;
+                let calc =
+                    move |places| -> Box<dyn Curve> { Box::new(SquareRoot::new(slope, places)) };
+                Ok(Box::new(calc))
             }
         }
     }
