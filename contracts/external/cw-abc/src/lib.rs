@@ -7,14 +7,8 @@ pub mod msg;
 mod queries;
 pub mod state;
 
-// Integration tests using an actual chain binary, requires
-// the "test-tube" feature to be enabled
-// cargo test --features test-tube
+pub use crate::error::ContractError;
+
 #[cfg(test)]
 #[cfg(feature = "test-tube")]
-mod test_tube;
-
-#[cfg(test)]
-mod testing;
-
-pub use crate::error::ContractError;
+mod tests;

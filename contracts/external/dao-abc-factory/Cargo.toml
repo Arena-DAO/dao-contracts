@@ -7,6 +7,9 @@ license = { workspace = true }
 repository = { workspace = true }
 version = { workspace = true }
 
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(tarpaulin)'] }
+
 [lib]
 crate-type = ["cdylib", "rlib"]
 

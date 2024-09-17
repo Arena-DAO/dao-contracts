@@ -4,7 +4,7 @@ authors = [
     "Ethan Frey <ethanfrey@users.noreply.github.com>",
     "Jake Hartnell",
     "Adair <adairrr@users.noreply.github.com>",
-    "Gabe Lopez <ismellike@users.noreply.github.com>",
+    "Gabe <ismellike@users.noreply.github.com>",
 ]
 description = "Implements an Augmented Bonding Curve"
 # Inherits license from previous work
@@ -15,6 +15,7 @@ version = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "rlib"]
+doctest = false
 
 [features]
 backtraces = ["cosmwasm-std/backtraces"]
@@ -35,22 +36,27 @@ cosmwasm-schema = { workspace = true }
 cw-address-like = { workspace = true }
 cw-ownable = { workspace = true }
 cw-paginate-storage = { workspace = true }
-cw-tokenfactory-issuer = { workspace = true, features = ["library"] }
+cw-tokenfactory-issuer = { workspace = true, features = [
+    "library",
+    "osmosis_tokenfactory",
+] }
 dao-interface = { workspace = true }
 getrandom = { workspace = true, features = ["js"] }
 thiserror = { workspace = true }
 cw-curves = { workspace = true }
+cw-orch = { workspace = true }
 
 [dev-dependencies]
 speculoos = { workspace = true }
 anyhow = { workspace = true }
 cw-multi-test = { workspace = true }
 dao-testing = { workspace = true, features = ["test-tube"] }
-osmosis-std = { workspace = true }
-osmosis-test-tube = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-cw-tokenfactory-issuer = { workspace = true }
 dao-voting-token-staked = { workspace = true }
 dao-proposal-single = { workspace = true }
 dao-voting = { workspace = true }
+dao-cw-orch = { path = "../../../packages/cw-orch" }
+cw-abc = { workspace = true }
+cw-orch-osmosis-test-tube = { workspace = true }
+dao-proposal-sudo = { workspace = true }

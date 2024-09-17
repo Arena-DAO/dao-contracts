@@ -55,15 +55,19 @@ pub enum UpdatePhaseConfigMsg {
 
 #[cw_ownable::cw_ownable_execute]
 #[cw_serde]
+#[derive(cw_orch::ExecuteFns)]
 pub enum ExecuteMsg {
     /// Buy will attempt to purchase as many supply tokens as possible.
     /// You must send only reserve tokens.
+    #[cw_orch(payable)]
     Buy {},
     /// Sell burns supply tokens in return for the reserve token.
     /// You must send only supply tokens.
+    #[cw_orch(payable)]
     Sell {},
     /// Donate will donate tokens to the funding pool.
     /// You must send only reserve tokens.
+    #[cw_orch(payable)]
     Donate {},
     /// Withdraw will withdraw tokens from the funding pool.
     Withdraw {
@@ -107,7 +111,7 @@ pub enum ExecuteMsg {
 
 #[cw_ownable::cw_ownable_query]
 #[cw_serde]
-#[derive(QueryResponses)]
+#[derive(QueryResponses, cw_orch::QueryFns)]
 pub enum QueryMsg {
     /// Returns the reserve and supply quantities, as well as the spot price to buy 1 token
     /// Returns [`CurveInfoResponse`]
@@ -151,7 +155,7 @@ pub enum QueryMsg {
         config_type: Option<HatcherAllowlistConfigType>,
     },
     /// Returns the Maximum Supply of the supply token
-    #[returns(Uint128)]
+    #[returns(Option<Uint128>)]
     MaxSupply {},
     /// Returns the amount of tokens to receive from buying
     #[returns(QuoteResponse)]
@@ -169,6 +173,22 @@ pub enum QueryMsg {
     /// Returns the address of the cw-tokenfactory-issuer contract
     #[returns(::cosmwasm_std::Addr)]
     TokenContract {},
+    /// Returns the supply denom
+    #[returns(String)]
+    SupplyDenom {},
+    /// Returns the dumped state
+    #[returns(DumpStateResponse)]
+    DumpState {},
+}
+
+#[cw_serde]
+pub struct DumpStateResponse {
+    pub supply_denom: String,
+    pub phase_config: CommonsPhaseConfigResponse,
+    pub is_paused: bool,
+    pub curve_info: CurveInfoResponse,
+    pub curve_type: CurveType,
+    pub max_supply: Option<Uint128>,
 }
 
 #[cw_serde]

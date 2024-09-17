@@ -2,11 +2,11 @@ use crate::abc::CurveFn;
 use crate::helpers::{calculate_buy_quote, calculate_sell_quote};
 use crate::msg::{
     CommonsPhaseConfigResponse, CurveInfoResponse, DenomResponse, DonationsResponse,
-    HatcherAllowlistResponse, HatchersResponse, QuoteResponse,
+    DumpStateResponse, HatcherAllowlistResponse, HatchersResponse, QuoteResponse,
 };
 use crate::state::{
     hatcher_allowlist, CurveState, HatcherAllowlistConfigType, HatcherAllowlistEntry, CURVE_STATE,
-    CURVE_TYPE, DONATIONS, HATCHERS, MAX_SUPPLY, PHASE, PHASE_CONFIG, SUPPLY_DENOM,
+    CURVE_TYPE, DONATIONS, HATCHERS, IS_PAUSED, MAX_SUPPLY, PHASE, PHASE_CONFIG, SUPPLY_DENOM,
 };
 use cosmwasm_std::{Deps, Order, QuerierWrapper, StdError, StdResult, Uint128};
 use cw_storage_plus::Bound;
@@ -24,7 +24,7 @@ pub fn query_curve_info(deps: Deps, curve_fn: CurveFn) -> StdResult<CurveInfoRes
 
     // This we can get from the local digits stored in instantiate
     let curve = curve_fn(decimals);
-    let spot_price = curve.spot_price(supply);
+    let spot_price = curve.spot_price(supply)?;
 
     Ok(CurveInfoResponse {
         reserve,
@@ -134,9 +134,8 @@ pub fn query_hatcher_allowlist(
 }
 
 /// Query the max supply of the supply token
-pub fn query_max_supply(deps: Deps) -> StdResult<Uint128> {
-    let max_supply = MAX_SUPPLY.may_load(deps.storage)?;
-    Ok(max_supply.unwrap_or(Uint128::MAX))
+pub fn query_max_supply(deps: Deps) -> StdResult<Option<Uint128>> {
+    MAX_SUPPLY.may_load(deps.storage)
 }
 
 /// Load and return the phase config
@@ -169,4 +168,15 @@ pub fn query_sell_quote(deps: Deps, payment: Uint128) -> StdResult<QuoteResponse
 
     calculate_sell_quote(payment, &curve_type, &curve_state, &phase, &phase_config)
         .map_err(|e| StdError::generic_err(e.to_string()))
+}
+
+pub fn query_dump_state(deps: Deps, curve_fn: CurveFn) -> StdResult<DumpStateResponse> {
+    Ok(DumpStateResponse {
+        supply_denom: SUPPLY_DENOM.load(deps.storage)?,
+        phase_config: query_phase_config(deps)?,
+        is_paused: IS_PAUSED.load(deps.storage)?,
+        curve_info: query_curve_info(deps, curve_fn)?,
+        curve_type: CURVE_TYPE.load(deps.storage)?,
+        max_supply: MAX_SUPPLY.may_load(deps.storage)?,
+    })
 }

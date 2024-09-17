@@ -198,19 +198,19 @@ impl CurveType {
         match self.clone() {
             CurveType::Constant { value, scale } => {
                 let calc = move |places| -> Box<dyn Curve> {
-                    Box::new(Constant::new(decimal(value, scale), places))
+                    Box::new(Constant::new(decimal(value, scale).unwrap(), places))
                 };
                 Box::new(calc)
             }
             CurveType::Linear { slope, scale } => {
                 let calc = move |places| -> Box<dyn Curve> {
-                    Box::new(Linear::new(decimal(slope, scale), places))
+                    Box::new(Linear::new(decimal(slope, scale).unwrap(), places))
                 };
                 Box::new(calc)
             }
             CurveType::SquareRoot { slope, scale } => {
                 let calc = move |places| -> Box<dyn Curve> {
-                    Box::new(SquareRoot::new(decimal(slope, scale), places))
+                    Box::new(SquareRoot::new(decimal(slope, scale).unwrap(), places))
                 };
                 Box::new(calc)
             }
