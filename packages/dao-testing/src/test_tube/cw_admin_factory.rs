@@ -37,7 +37,7 @@ impl<'a> CwAdminFactory<'a> {
                 code_id,
                 &InstantiateMsg { admin },
                 Some(&signer.address()),
-                None,
+                Some("cw_admin_factory"),
                 funds,
                 signer,
             )?
