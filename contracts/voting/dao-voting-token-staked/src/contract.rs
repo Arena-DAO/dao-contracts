@@ -34,15 +34,15 @@ use dao_voting::{
     },
 };
 
-use crate::error::ContractError;
 use crate::msg::{
     ExecuteMsg, GetHooksResponse, InstantiateMsg, ListStakersResponse, MigrateMsg, QueryMsg,
-    StakerBalanceResponse, TokenInfo,
+    StakerBalanceResponse,
 };
 use crate::state::{
     Config, ACTIVE_THRESHOLD, CLAIMS, CONFIG, DAO, DENOM, HOOKS, MAX_CLAIMS, STAKED_BALANCES,
     STAKED_TOTAL, TOKEN_INSTANTIATION_INFO, TOKEN_ISSUER_CONTRACT,
 };
+use crate::{error::ContractError, msg::TokenInfo};
 
 pub(crate) const CONTRACT_NAME: &str = "crates.io:dao-voting-token-staked";
 pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -139,10 +139,10 @@ pub fn instantiate(
                 funds,
             } => {
                 // Call factory contract. Use only a trusted factory contract,
-                // as this is a critical security component and valdiation of
+                // as this is a critical security component and validation of
                 // setup will happen in the factory.
                 Ok(Response::new()
-                    .add_attribute("action", "intantiate")
+                    .add_attribute("action", "instantiate")
                     .add_attribute("token", "custom_factory")
                     .add_submessage(SubMsg::reply_on_success(
                         WasmMsg::Execute {
@@ -633,7 +633,8 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                     // If metadata, set it by calling the contract
                     #[cfg(any(
                         feature = "osmosis_tokenfactory",
-                        feature = "cosmwasm_tokenfactory"
+                        feature = "cosmwasm_tokenfactory",
+                        feature = "kujira_tokenfactory"
                     ))]
                     if let Some(metadata) = token.metadata {
                         // The first denom_unit must be the same as the tf and base denom.
@@ -663,6 +664,8 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                                     display: metadata.display,
                                     name: metadata.name,
                                     symbol: metadata.symbol,
+                                    uri: String::default(),
+                                    uri_hash: String::default(),
                                 },
                             })?,
                             funds: vec![],
