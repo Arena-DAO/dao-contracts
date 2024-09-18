@@ -12,8 +12,6 @@ default = []
 wasm_test = []
 
 [dependencies]
-
-serde.workspace = true
 btsg-ft-factory.workspace = true
 cosmwasm-std.workspace = true
 cw-abc.workspace = true
