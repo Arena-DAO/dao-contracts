@@ -12,8 +12,7 @@ use cw_abc::msg::{
 use cw_storage_plus::{Bound, Item, Map};
 use cw_utils::parse_reply_instantiate_data;
 use dao_interface::{
-    state::ModuleInstantiateCallback, token::TokenFactoryCallback,
-    voting::Query as VotingModuleQueryMsg,
+    state::CallbackMessages, token::TokenFactoryCallback, voting::Query as VotingModuleQueryMsg,
 };
 
 use crate::{
@@ -159,10 +158,10 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
             };
 
             // DAO must accept ownership transfer. Here we include a
-            // ModuleInstantiateCallback message that will be called by the
+            // CallbackMessages message that will be called by the
             // dao-dao-core contract when voting module instantiation is
             // complete.
-            let callback = ModuleInstantiateCallback {
+            let callback = CallbackMessages {
                 msgs: vec![CosmosMsg::Wasm(WasmMsg::Execute {
                     contract_addr: abc_addr.clone(),
                     msg: to_json_binary(&AbcExecuteMsg::UpdateOwnership(

@@ -294,6 +294,8 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                             display: metadata.display,
                             name: metadata.name,
                             symbol: metadata.symbol,
+                            uri: String::default(),
+                            uri_hash: String::default(),
                         },
                     })?,
                     funds: vec![],
