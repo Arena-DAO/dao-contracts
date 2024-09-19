@@ -636,7 +636,7 @@ fn test_dao_hatcher_functionality() -> Result<()> {
 }
 
 #[test]
-pub fn arena() -> Result<()> {
+pub fn test_arena_token() -> Result<()> {
     let (mut chain, abc, token_issuer_code_id, accounts) = setup()?;
     let dao = chain.init_account(coins(1_000_000_000_000, TEST_RESERVE_DENOM))?;
     let buyer = chain.init_account(coins(1_000_000_000_000_000, TEST_RESERVE_DENOM))?;

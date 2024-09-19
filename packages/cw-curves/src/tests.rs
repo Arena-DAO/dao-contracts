@@ -69,8 +69,8 @@ fn sqrt_curve() -> StdResult<()> {
     );
     // Test reserve calculation (1 million input should yield 23 output)
     assert_eq!(Uint128::new(23), curve.reserve(Uint128::new(1_000_000))?);
-    // Test supply calculation (23 input should yield 990,453 output)
-    assert_eq!(Uint128::new(990_453), curve.supply(Uint128::new(23))?);
+    // Test supply calculation (23 input should yield 990,000 output)
+    assert_eq!(Uint128::new(990_000), curve.supply(Uint128::new(23))?);
 
     Ok(())
 }

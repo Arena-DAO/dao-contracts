@@ -1,4 +1,7 @@
 use cosmwasm_std::{Decimal as StdDecimal, StdError, StdResult};
+use integer_cbrt::IntegerCubeRoot;
+use integer_sqrt::IntegerSquareRoot;
+use rust_decimal::prelude::{FromPrimitive, ToPrimitive};
 use rust_decimal::Decimal;
 
 /// Creates a Decimal representation of a number with a specified scale.
@@ -85,159 +88,122 @@ pub fn decimal_to_std(x: Decimal) -> StdResult<StdDecimal> {
         .map_err(|_| StdError::generic_err("decimal_to_std: Failed to create StdDecimal"))
 }
 
-/// Calculates the square root of a `Decimal` value with maximum precision using the Newton-Raphson method.
+/// Calculates the square root of a Decimal with high precision.
 ///
-/// This function computes the square root of a non-negative `Decimal` value to a high degree of accuracy,
-/// limited only by the precision of the `Decimal` type (which supports up to 28 decimal places).
-/// It uses the Newton-Raphson iterative method to refine an initial guess until the result converges
-/// within a predefined tolerance or until a maximum number of iterations is reached to prevent infinite loops.
-/// If the maximum number of iterations is reached without convergence, the function returns the best approximation obtained.
+/// This function scales the input `square` to an integer by multiplying it with a precision multiplier,
+/// computes the integer square root, and then scales the result back down.
 ///
 /// # Arguments
 ///
-/// * `value` - The non-negative `Decimal` value for which to calculate the square root.
+/// * `square` - The Decimal value for which to compute the square root.
 ///
 /// # Returns
 ///
-/// * `StdResult<Decimal>` - The square root of the input `value` on success, or an error if the input is invalid.
-///
-/// # Errors
-///
-/// * Returns an error if the input `value` is negative, as the square root of a negative number is undefined in real numbers.
-///
-/// # Examples
-///
-/// ```rust
-/// use cosmwasm_std::StdResult;
-/// use rust_decimal::Decimal;
-///
-/// let value = Decimal::new(16, 0); // Represents 16.0
-/// let sqrt_value = square_root(value)?;
-/// assert_eq!(sqrt_value, Decimal::new(4, 0)); // sqrt(16) = 4
-/// ```
-///
-/// # Implementation Details
-///
-/// * The function uses the Newton-Raphson method for finding successively better approximations to the square root.
-/// * It starts with an initial guess of `value / 2` and iteratively refines it.
-/// * The iteration continues until the difference between successive guesses is less than a small epsilon value,
-///   set to match the maximum precision of the `Decimal` type, or until the maximum number of iterations is reached.
-/// * A maximum iteration limit (set to 100 iterations) is used to prevent infinite loops in cases where convergence is not achieved.
-/// * If the method fails to converge within the maximum iterations, the function returns the best approximation obtained so far.
-/// * Calculations are performed directly on `Decimal` values to maintain maximum precision.
-///
-/// # Notes
-///
-/// * The convergence criterion (`epsilon`) is set to `1e-28`, which is the smallest number representable by `Decimal`.
-/// * The maximum number of iterations is set to 100, which is sufficient for convergence in typical cases.
-/// * By returning the best approximation when the maximum iterations are reached, the function avoids errors while still providing a usable result.
-pub fn square_root(value: Decimal) -> StdResult<Decimal> {
-    if value.is_sign_negative() {
+/// * `StdResult<Decimal>` - The square root of `square`, or an error if the calculation fails.
+pub(crate) fn square_root(square: Decimal) -> StdResult<Decimal> {
+    // Ensure the input is non-negative
+    if square.is_sign_negative() {
         return Err(StdError::generic_err("square_root: Negative input"));
     }
-    if value.is_zero() {
+
+    // Handle zero input
+    if square.is_zero() {
         return Ok(Decimal::ZERO);
     }
 
-    let two = Decimal::from(2);
-    let mut last_guess = Decimal::ZERO;
-    let mut guess = value / two;
+    // Define the precision factor (must be even for square root)
+    const PRECISION_FACTOR: u32 = 12;
 
-    // Set convergence criteria based on Decimal's maximum precision (28 decimal places)
-    let epsilon = Decimal::new(1, 28); // 1e-28
+    // Compute the multiplier as 10^PRECISION_FACTOR
+    let multiplier = 10u128
+        .checked_pow(PRECISION_FACTOR)
+        .ok_or_else(|| StdError::generic_err("square_root: Exponentiation overflow"))?;
 
-    let max_iterations = 100;
-    let mut iterations = 0;
+    // Convert multiplier to Decimal
+    let multiplier_decimal = Decimal::from_u128(multiplier)
+        .ok_or_else(|| StdError::generic_err("square_root: Multiplier conversion failed"))?;
 
-    while (guess - last_guess).abs() > epsilon && iterations < max_iterations {
-        last_guess = guess;
-        guess = (guess + value / guess) / two;
+    // Scale up the input to an integer representation
+    let scaled_square = square
+        .checked_mul(multiplier_decimal)
+        .ok_or_else(|| StdError::generic_err("square_root: Overflow during scaling"))?;
 
-        iterations += 1;
-    }
+    // Convert scaled value to u128
+    let integer_square = scaled_square
+        .floor()
+        .to_u128()
+        .ok_or_else(|| StdError::generic_err("square_root: Conversion to u128 failed"))?;
 
-    // Return the best approximation found
-    Ok(guess)
+    // Compute the integer square root
+    let integer_root = integer_square.integer_sqrt();
+
+    // Calculate the precision for the result
+    let result_precision = PRECISION_FACTOR / 2;
+
+    // Convert the integer root back to Decimal
+    decimal(integer_root, result_precision)
 }
 
-/// Calculates the cube root of a `Decimal` value with maximum precision using the Newton-Raphson method.
+/// Calculates the cube root of a Decimal with high precision.
 ///
-/// This function computes the cube root of a `Decimal` value to a high degree of accuracy,
-/// limited only by the precision of the `Decimal` type (which supports up to 28 decimal places).
-/// It uses the Newton-Raphson iterative method to refine an initial guess until the result converges
-/// within a predefined tolerance or until a maximum number of iterations is reached to prevent infinite loops.
-/// If the maximum number of iterations is reached without convergence, the function returns the best approximation obtained so far.
-/// The function supports both positive and negative inputs, as the cube root of a negative number is negative.
+/// This function scales the input `cube` to an integer by multiplying it with a precision multiplier,
+/// computes the integer cube root, and then scales the result back down.
 ///
 /// # Arguments
 ///
-/// * `value` - The `Decimal` value for which to calculate the cube root.
+/// * `cube` - The Decimal value for which to compute the cube root.
 ///
 /// # Returns
 ///
-/// * `StdResult<Decimal>` - The cube root of the input `value` on success, or an error if the input is invalid.
-///
-/// # Examples
-///
-/// ```rust
-/// use cosmwasm_std::StdResult;
-/// use rust_decimal::Decimal;
-///
-/// let value = Decimal::new(27, 0); // Represents 27.0
-/// let cbrt_value = cube_root(value)?;
-/// assert_eq!(cbrt_value, Decimal::new(3, 0)); // cbrt(27) = 3
-///
-/// let negative_value = Decimal::new(-8, 0); // Represents -8.0
-/// let cbrt_negative = cube_root(negative_value)?;
-/// assert_eq!(cbrt_negative, Decimal::new(-2, 0)); // cbrt(-8) = -2
-/// ```
-///
-/// # Implementation Details
-///
-/// * The function uses the Newton-Raphson method for finding successively better approximations to the cube root.
-/// * It starts with an initial guess of `value / 3` and iteratively refines it.
-/// * The iteration continues until the difference between successive guesses is less than a small epsilon value,
-///   set to match the maximum precision of the `Decimal` type, or until the maximum number of iterations is reached.
-/// * A maximum iteration limit (set to 100 iterations) is used to prevent infinite loops in cases where convergence is not achieved.
-/// * If the method fails to converge within the maximum iterations, the function returns the best approximation obtained so far.
-/// * Negative inputs are handled correctly, as the cube root of a negative number is negative.
-/// * Calculations are performed directly on `Decimal` values to maintain maximum precision.
-///
-/// # Notes
-///
-/// * The convergence criterion (`epsilon`) is set to `1e-28`, which is the smallest number representable by `Decimal`.
-/// * The maximum number of iterations is set to 100, which is sufficient for convergence in typical cases.
-/// * By returning the best approximation when the maximum iterations are reached, the function avoids errors while still providing a usable result.
-pub fn cube_root(value: Decimal) -> StdResult<Decimal> {
-    if value.is_zero() {
+/// * `StdResult<Decimal>` - The cube root of `cube`, or an error if the calculation fails.
+pub(crate) fn cube_root(cube: Decimal) -> StdResult<Decimal> {
+    // Handle zero input
+    if cube.is_zero() {
         return Ok(Decimal::ZERO);
     }
 
-    let three = Decimal::from(3);
-    let two = Decimal::from(2);
-    let mut last_guess = Decimal::ZERO;
-    let mut guess = value / three;
+    // Determine if the input is negative
+    let is_negative = cube.is_sign_negative();
 
-    // Set convergence criteria based on Decimal's maximum precision (28 decimal places)
-    let epsilon = Decimal::new(1, 28); // 1e-28
+    // Use the absolute value for computation
+    let cube_abs = cube.abs();
 
-    let max_iterations = 100;
-    let mut iterations = 0;
+    // Define the precision factor (must be divisible by 3 for cube root)
+    const PRECISION_FACTOR: u32 = 9;
 
-    // Handle negative inputs by operating on the absolute value and restoring the sign at the end
-    let is_negative = value.is_sign_negative();
-    let value_abs = if is_negative { -value } else { value };
+    // Compute the multiplier as 10^PRECISION_FACTOR
+    let multiplier = 10u128
+        .checked_pow(PRECISION_FACTOR)
+        .ok_or_else(|| StdError::generic_err("cube_root: Exponentiation overflow"))?;
 
-    while (guess - last_guess).abs() > epsilon && iterations < max_iterations {
-        last_guess = guess;
-        guess = (two * guess + value_abs / (guess * guess)) / three;
+    // Convert multiplier to Decimal
+    let multiplier_decimal = Decimal::from_u128(multiplier)
+        .ok_or_else(|| StdError::generic_err("cube_root: Multiplier conversion failed"))?;
 
-        iterations += 1;
-    }
+    // Scale up the input to an integer representation
+    let scaled_cube = cube_abs
+        .checked_mul(multiplier_decimal)
+        .ok_or_else(|| StdError::generic_err("cube_root: Overflow during scaling"))?;
 
+    // Convert scaled value to u128
+    let integer_cube = scaled_cube
+        .floor()
+        .to_u128()
+        .ok_or_else(|| StdError::generic_err("cube_root: Conversion to u128 failed"))?;
+
+    // Compute the integer cube root
+    let integer_root = integer_cube.integer_cbrt();
+
+    // Calculate the precision for the result
+    let result_precision = PRECISION_FACTOR / 3;
+
+    // Convert the integer root back to Decimal
+    let root_decimal = decimal(integer_root, result_precision)?;
+
+    // Apply the sign back
     if is_negative {
-        Ok(-guess)
+        Ok(-root_decimal)
     } else {
-        Ok(guess)
+        Ok(root_decimal)
     }
 }
