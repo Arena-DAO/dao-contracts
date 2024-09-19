@@ -102,7 +102,7 @@ pub fn buy(deps: DepsMut, _env: Env, info: MessageInfo) -> Result<Response, Cont
                 }],
             }))
         } else {
-            curve_state.funding += buy_quote.funded;
+            curve_state.funding = curve_state.funding.checked_add(buy_quote.funded)?;
         }
     };
 
@@ -186,7 +186,7 @@ pub fn sell(deps: DepsMut, _env: Env, info: MessageInfo) -> Result<Response, Con
                 }],
             }))
         } else {
-            curve_state.funding += sell_quote.funded;
+            curve_state.funding = curve_state.funding.checked_add(sell_quote.funded)?;
         }
     }
 
