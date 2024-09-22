@@ -7,7 +7,7 @@ use cosmwasm_std::{
 use cw2::{get_contract_version, set_contract_version, ContractVersion};
 use cw_paginate_storage::{paginate_map, paginate_map_keys, paginate_map_values};
 use cw_storage_plus::Map;
-use cw_utils::{parse_reply_execute_data, parse_reply_instantiate_data, Duration};
+use cw_utils::{parse_reply_instantiate_data, Duration};
 use dao_interface::{
     msg::{ExecuteMsg, InitialItem, InstantiateMsg, MigrateMsg, QueryMsg},
     query::{
@@ -15,7 +15,7 @@ use dao_interface::{
         GetItemResponse, PauseInfoResponse, ProposalModuleCountResponse, SubDao,
     },
     state::{
-        Admin, CallbackMessages, Config, ModuleInstantiateInfo, ProposalModule,
+        Admin, Config, ModuleInstantiateCallback, ModuleInstantiateInfo, ProposalModule,
         ProposalModuleStatus,
     },
     voting,
@@ -30,10 +30,9 @@ use crate::state::{
 pub(crate) const CONTRACT_NAME: &str = "crates.io:dao-dao-core";
 pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-const PROPOSAL_MODULE_INSTANTIATE_REPLY_ID: u64 = 0;
+const PROPOSAL_MODULE_REPLY_ID: u64 = 0;
 const VOTE_MODULE_INSTANTIATE_REPLY_ID: u64 = 1;
 const VOTE_MODULE_UPDATE_REPLY_ID: u64 = 2;
-const PROPOSAL_MODULE_EXECUTE_REPLY_ID: u64 = 3;
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -72,7 +71,7 @@ pub fn instantiate(
         .proposal_modules_instantiate_info
         .into_iter()
         .map(|info| info.into_wasm_msg(env.contract.address.clone()))
-        .map(|wasm| SubMsg::reply_on_success(wasm, PROPOSAL_MODULE_INSTANTIATE_REPLY_ID))
+        .map(|wasm| SubMsg::reply_on_success(wasm, PROPOSAL_MODULE_REPLY_ID))
         .collect();
     if proposal_module_msgs.is_empty() {
         return Err(ContractError::NoActiveProposalModules {});
@@ -229,10 +228,7 @@ pub fn execute_proposal_hook(
 
     Ok(Response::default()
         .add_attribute("action", "execute_proposal_hook")
-        .add_submessages(
-            msgs.into_iter()
-                .map(|msg| SubMsg::reply_on_success(msg, PROPOSAL_MODULE_EXECUTE_REPLY_ID)),
-        ))
+        .add_messages(msgs))
 }
 
 pub fn execute_nominate_admin(
@@ -396,7 +392,7 @@ pub fn execute_update_proposal_modules(
     let to_add: Vec<SubMsg<Empty>> = to_add
         .into_iter()
         .map(|info| info.into_wasm_msg(env.contract.address.clone()))
-        .map(|wasm| SubMsg::reply_on_success(wasm, PROPOSAL_MODULE_INSTANTIATE_REPLY_ID))
+        .map(|wasm| SubMsg::reply_on_success(wasm, PROPOSAL_MODULE_REPLY_ID))
         .collect();
 
     Ok(Response::default()
@@ -956,7 +952,7 @@ pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, Con
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
-        PROPOSAL_MODULE_INSTANTIATE_REPLY_ID => {
+        PROPOSAL_MODULE_REPLY_ID => {
             let res = parse_reply_instantiate_data(msg)?;
             let prop_module_addr = deps.api.addr_validate(&res.contract_address)?;
             let total_module_count = TOTAL_PROPOSAL_MODULE_COUNT.load(deps.storage)?;
@@ -977,7 +973,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 
             // Check for module instantiation callbacks
             let callback_msgs = match res.data {
-                Some(data) => from_json::<CallbackMessages>(&data)
+                Some(data) => from_json::<ModuleInstantiateCallback>(&data)
                     .map(|m| m.msgs)
                     .unwrap_or_else(|_| vec![]),
                 None => vec![],
@@ -987,6 +983,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
                 .add_attribute("prop_module".to_string(), res.contract_address)
                 .add_messages(callback_msgs))
         }
+
         VOTE_MODULE_INSTANTIATE_REPLY_ID => {
             let res = parse_reply_instantiate_data(msg)?;
             let vote_module_addr = deps.api.addr_validate(&res.contract_address)?;
@@ -1002,7 +999,7 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 
             // Check for module instantiation callbacks
             let callback_msgs = match res.data {
-                Some(data) => from_json::<CallbackMessages>(&data)
+                Some(data) => from_json::<ModuleInstantiateCallback>(&data)
                     .map(|m| m.msgs)
                     .unwrap_or_else(|_| vec![]),
                 None => vec![],
@@ -1020,19 +1017,6 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
 
             Ok(Response::default().add_attribute("voting_module", vote_module_addr))
         }
-        PROPOSAL_MODULE_EXECUTE_REPLY_ID => match parse_reply_execute_data(msg) {
-            Ok(res) => {
-                let callback_msgs = match res.data {
-                    Some(data) => from_json::<CallbackMessages>(&data)
-                        .map(|m| m.msgs)
-                        .unwrap_or_else(|_| vec![]),
-                    None => vec![],
-                };
-
-                Ok(Response::default().add_messages(callback_msgs))
-            }
-            Err(_) => Ok(Response::default()),
-        },
         _ => Err(ContractError::UnknownReplyID {}),
     }
 }

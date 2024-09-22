@@ -9,7 +9,7 @@ use cosmwasm_std::{
 use cw2::set_contract_version;
 use dao_interface::{
     query::SubDao,
-    state::{CallbackMessages, ProposalModule},
+    state::{ModuleInstantiateCallback, ProposalModule},
 };
 
 use crate::{
@@ -42,7 +42,7 @@ pub fn instantiate(
     CORE_ADDR.save(deps.storage, &info.sender)?;
 
     Ok(
-        Response::default().set_data(to_json_binary(&CallbackMessages {
+        Response::default().set_data(to_json_binary(&ModuleInstantiateCallback {
             msgs: vec![WasmMsg::Execute {
                 contract_addr: env.contract.address.to_string(),
                 msg: to_json_binary(&MigrateV1ToV2 {

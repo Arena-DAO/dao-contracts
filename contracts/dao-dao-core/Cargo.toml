@@ -41,4 +41,3 @@ cw721-base = { workspace = true }
 dao-cw-orch = { path = "../../packages/cw-orch" }
 dao-proposal-sudo = { workspace = true }
 dao-voting-cw20-balance = { workspace = true }
-dao-callback-messages = { workspace = true }

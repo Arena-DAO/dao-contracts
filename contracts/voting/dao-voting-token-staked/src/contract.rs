@@ -20,7 +20,7 @@ use cw_utils::{
 };
 use dao_hooks::stake::{stake_hook_msgs, unstake_hook_msgs};
 use dao_interface::{
-    state::CallbackMessages,
+    state::ModuleInstantiateCallback,
     token::{InitialBalance, NewTokenInfo, TokenFactoryCallback},
     voting::{
         DenomResponse, IsActiveResponse, TotalPowerAtHeightResponse, VotingPowerAtHeightResponse,
@@ -717,8 +717,8 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
 
                     // On setup success, have the DAO complete the second part of
                     // ownership transfer by accepting ownership in a
-                    // CallbackMessages.
-                    let callback = to_json_binary(&CallbackMessages {
+                    // ModuleInstantiateCallback.
+                    let callback = to_json_binary(&ModuleInstantiateCallback {
                         msgs: vec![CosmosMsg::Wasm(WasmMsg::Execute {
                             contract_addr: issuer_addr.clone(),
                             msg: to_json_binary(&IssuerExecuteMsg::UpdateOwnership(

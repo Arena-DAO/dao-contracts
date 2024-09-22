@@ -81,9 +81,9 @@ impl ModuleInstantiateInfo {
     }
 }
 
-/// Callbacks to be executed from response data
+/// Callbacks to be executed when a module is instantiated
 #[cw_serde]
-pub struct CallbackMessages {
+pub struct ModuleInstantiateCallback {
     pub msgs: Vec<CosmosMsg>,
 }
 
