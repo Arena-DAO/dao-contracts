@@ -1589,6 +1589,7 @@ dependencies = [
  "cw-multi-test",
  "cw-orch 0.24.1",
  "cw-ownable",
+ "cw-paginate-storage 2.5.0",
  "cw-storage-plus 1.2.0",
  "cw-utils 1.0.3",
  "cw-vesting",
