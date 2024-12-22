@@ -106,6 +106,7 @@ fn test_instantiate_with_n_gov_modules(n: usize) {
             })
             .collect(),
         initial_items: None,
+        initial_dao_actions: None,
     };
     gov.instantiate(&instantiate, None, None).unwrap();
 
@@ -208,6 +209,7 @@ makes wickedness."
         },
         proposal_modules_instantiate_info: governance_modules,
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&instantiate, None, None).unwrap();
@@ -249,6 +251,7 @@ fn test_update_config() -> cw_orch::anyhow::Result<()> {
             label: "voting module".to_string(),
         }],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None)?;
@@ -316,6 +319,7 @@ fn test_swap_governance(swaps: Vec<(u32, u32)>) {
             label: "governance module".to_string(),
         }],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -462,6 +466,7 @@ fn test_removed_modules_can_not_execute() {
             label: "governance module".to_string(),
         }],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -581,6 +586,7 @@ fn test_module_already_disabled() {
             label: "governance module".to_string(),
         }],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -658,6 +664,7 @@ fn test_swap_voting_module() {
             label: "governance module".to_string(),
         }],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -730,6 +737,7 @@ fn test_permissions() {
         initial_items: None,
         automatically_add_cw20s: true,
         automatically_add_cw721s: true,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -832,6 +840,7 @@ fn do_standard_instantiate(
             label: "governance module".to_string(),
         }],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -1274,6 +1283,7 @@ fn test_list_items() {
             label: "governance module".to_string(),
         }],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -1390,6 +1400,7 @@ fn test_instantiate_with_items() {
             label: "governance module".to_string(),
         }],
         initial_items: Some(initial_items.clone()),
+        initial_dao_actions: None,
     };
 
     // Ensure duplicates are dissallowed.
@@ -1940,6 +1951,7 @@ fn test_migrate_from_compatible() {
             label: "governance module".to_string(),
         }],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, Some(&mock.sender_addr()), None)
@@ -2196,6 +2208,7 @@ fn test_module_prefixes() {
             },
         ],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();

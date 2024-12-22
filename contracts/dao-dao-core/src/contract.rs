@@ -92,11 +92,16 @@ pub fn instantiate(
     TOTAL_PROPOSAL_MODULE_COUNT.save(deps.storage, &0)?;
     ACTIVE_PROPOSAL_MODULE_COUNT.save(deps.storage, &0)?;
 
-    Ok(Response::new()
+    let res = Response::new()
         .add_attribute("action", "instantiate")
         .add_attribute("sender", info.sender)
         .add_submessage(vote_module_msg)
-        .add_submessages(proposal_module_msgs))
+        .add_submessages(proposal_module_msgs);
+
+    if let Some(initial_dao_actions) = msg.initial_dao_actions {
+        return Ok(res.add_messages(initial_dao_actions));
+    }
+    Ok(res)
 }
 
 #[cfg_attr(not(feature = "library"), entry_point)]
