@@ -121,6 +121,7 @@ fn main() -> Result<()> {
             label: "DAO DAO Proposal Module".to_string(),
         }],
         initial_items: None,
+        initial_dao_actions: None,
     };
 
     // Init dao dao dao with an initial treasury of 9000000 tokens

@@ -50,6 +50,8 @@ pub struct InstantiateMsg {
     pub initial_items: Option<Vec<InitialItem>>,
     /// Implements the DAO Star standard: <https://daostar.one/EIP>
     pub dao_uri: Option<String>,
+    /// Optional initial actions for the DAO
+    pub initial_dao_actions: Option<Vec<CosmosMsg>>,
 }
 
 #[cw_serde]
