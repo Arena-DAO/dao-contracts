@@ -5,7 +5,7 @@ use cosmwasm_std::{
     Response, StdError, StdResult, Uint128, Uint256,
 };
 use cw2::{get_contract_version, set_contract_version};
-use cw20::{Cw20ReceiveMsg, Denom};
+use cw20::{Cw20ReceiveMsg, Denom, UncheckedDenom};
 use cw_storage_plus::Bound;
 use cw_utils::{must_pay, nonpayable, Duration, Expiration};
 use dao_interface::voting::InfoResponse;
@@ -91,6 +91,9 @@ pub fn execute(
         ExecuteMsg::FundLatest {} => execute_fund_latest_native(deps, env, info),
         ExecuteMsg::Claim { id } => execute_claim(deps, env, info, id),
         ExecuteMsg::Withdraw { id } => execute_withdraw(deps, info, env, id),
+        ExecuteMsg::UnsafeForceWithdraw { amount, denom } => {
+            execute_unsafe_force_withdraw(deps, info, amount, denom)
+        }
     }
 }
 
@@ -594,6 +597,33 @@ fn execute_update_owner(
     Ok(Response::new().add_attributes(ownership.into_attributes()))
 }
 
+fn execute_unsafe_force_withdraw(
+    deps: DepsMut,
+    info: MessageInfo,
+    amount: Uint128,
+    denom: UncheckedDenom,
+) -> Result<Response, ContractError> {
+    nonpayable(&info)?;
+
+    // only the owner can initiate a force withdraw
+    cw_ownable::assert_owner(deps.storage, &info.sender)?;
+
+    let checked_denom = denom.into_checked(deps.as_ref())?;
+
+    let denom_str = match &checked_denom {
+        Denom::Native(denom) => denom.to_string(),
+        Denom::Cw20(address) => address.to_string(),
+    };
+
+    let send = get_transfer_msg(info.sender, amount, checked_denom)?;
+
+    Ok(Response::new()
+        .add_message(send)
+        .add_attribute("action", "unsafe_force_withdraw")
+        .add_attribute("amount", amount.to_string())
+        .add_attribute("denom", denom_str))
+}
+
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     match msg {
@@ -737,7 +767,7 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
 
     // only allow upgrades
     if new_version <= current_version {
-        return Err(ContractError::MigrationErrorInvalidVersion {
+        return Err(ContractError::MigrationErrorInvalidVersionNotNewer {
             new: new_version.to_string(),
             current: current_version.to_string(),
         });

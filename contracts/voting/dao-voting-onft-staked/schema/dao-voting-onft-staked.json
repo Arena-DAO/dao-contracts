@@ -1,6 +1,6 @@
 {
   "contract_name": "dao-voting-onft-staked",
-  "contract_version": "2.5.0",
+  "contract_version": "2.6.0",
   "idl_version": "1.0.0",
   "instantiate": {
     "$schema": "http://json-schema.org/draft-07/schema#",
@@ -282,6 +282,14 @@
         "properties": {
           "claim_nfts": {
             "type": "object",
+            "required": [
+              "type"
+            ],
+            "properties": {
+              "type": {
+                "$ref": "#/definitions/ClaimType"
+              }
+            },
             "additionalProperties": false
           }
         },
@@ -434,6 +442,40 @@
           }
         ]
       },
+      "ClaimType": {
+        "oneOf": [
+          {
+            "description": "Claims all legacy claims.",
+            "type": "string",
+            "enum": [
+              "legacy"
+            ]
+          },
+          {
+            "description": "Claims all non-legacy claims.",
+            "type": "string",
+            "enum": [
+              "all"
+            ]
+          },
+          {
+            "description": "Claims specific non-legacy NFTs.",
+            "type": "object",
+            "required": [
+              "specific"
+            ],
+            "properties": {
+              "specific": {
+                "type": "array",
+                "items": {
+                  "type": "string"
+                }
+              }
+            },
+            "additionalProperties": false
+          }
+        ]
+      },
       "Decimal": {
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
@@ -509,6 +551,20 @@
             "properties": {
               "address": {
                 "type": "string"
+              },
+              "limit": {
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "type": [
+                  "string",
+                  "null"
+                ]
               }
             },
             "additionalProperties": false
@@ -943,14 +999,25 @@
         "NftClaim": {
           "type": "object",
           "required": [
+            "legacy",
             "release_at",
             "token_id"
           ],
           "properties": {
+            "legacy": {
+              "description": "Whether the claim is a legacy claim.",
+              "type": "boolean"
+            },
             "release_at": {
-              "$ref": "#/definitions/Expiration"
+              "description": "The expiration time of the claim.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/Expiration"
+                }
+              ]
             },
             "token_id": {
+              "description": "The token ID of the NFT being claimed.",
               "type": "string"
             }
           },

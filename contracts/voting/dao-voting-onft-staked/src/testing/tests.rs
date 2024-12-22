@@ -1,19 +1,22 @@
+use cosmwasm_std::storage_keys::to_length_prefixed_nested;
 use cosmwasm_std::testing::{mock_dependencies, mock_env};
-use cosmwasm_std::{Addr, Decimal, Uint128};
-use cw721_controllers::{NftClaim, NftClaimsResponse};
+use cosmwasm_std::{to_json_vec, Addr, Decimal, Storage, Uint128};
 use cw_multi_test::{next_block, Executor};
+use cw_storage_plus::Map;
 use cw_utils::Duration;
 use dao_interface::voting::IsActiveResponse;
 use dao_voting::threshold::{ActiveThreshold, ActiveThresholdResponse};
 
 use crate::msg::OnftCollection;
-use crate::testing::execute::{cancel_stake, confirm_stake_nft, prepare_stake_nft, send_nft};
+use crate::testing::execute::{
+    cancel_stake, claim_legacy_nfts, claim_specific_nfts, confirm_stake_nft, prepare_stake_nft,
+    send_nft,
+};
 use crate::testing::queries::query_dao;
 use crate::testing::DAO;
 use crate::{
     contract::{migrate, CONTRACT_NAME, CONTRACT_VERSION},
-    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
-    state::MAX_CLAIMS,
+    msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, NftClaim, NftClaimsResponse, QueryMsg},
     testing::{
         execute::{
             claim_nfts, mint_and_stake_nft, mint_nft, stake_nft, unstake_nfts, update_config,
@@ -184,7 +187,8 @@ fn test_update_config() -> anyhow::Result<()> {
         NftClaimsResponse {
             nft_claims: vec![NftClaim {
                 token_id: "1".to_string(),
-                release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 3)
+                release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 3),
+                legacy: false,
             }]
         }
     );
@@ -206,7 +210,8 @@ fn test_update_config() -> anyhow::Result<()> {
         NftClaimsResponse {
             nft_claims: vec![NftClaim {
                 token_id: "1".to_string(),
-                release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 3)
+                release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 3),
+                legacy: false,
             }]
         }
     );
@@ -221,11 +226,13 @@ fn test_update_config() -> anyhow::Result<()> {
             nft_claims: vec![
                 NftClaim {
                     token_id: "1".to_string(),
-                    release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 3)
+                    release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 3),
+                    legacy: false,
                 },
                 NftClaim {
                     token_id: "2".to_string(),
-                    release_at: Duration::Time(1).after(&app.block_info())
+                    release_at: Duration::Time(1).after(&app.block_info()),
+                    legacy: false,
                 }
             ]
         }
@@ -277,7 +284,8 @@ fn test_claims() -> anyhow::Result<()> {
         claims.nft_claims,
         vec![NftClaim {
             token_id: "2".to_string(),
-            release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 1)
+            release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 1),
+            legacy: false,
         }]
     );
 
@@ -294,9 +302,9 @@ fn test_claims() -> anyhow::Result<()> {
     Ok(())
 }
 
-// I can not have more than MAX_CLAIMS claims pending.
+// I can query and claim my pending legacy claims and non-legacy claims.
 #[test]
-fn test_max_claims() -> anyhow::Result<()> {
+pub fn test_legacy_claims_work() -> anyhow::Result<()> {
     let CommonTest {
         mut app,
         module,
@@ -304,15 +312,160 @@ fn test_max_claims() -> anyhow::Result<()> {
         ..
     } = setup_test(Some(Duration::Height(1)), None);
 
-    for i in 0..MAX_CLAIMS {
-        let i_str = &i.to_string();
-        mint_and_stake_nft(&mut app, &nft, &module, STAKER, i_str)?;
-        unstake_nfts(&mut app, &module, STAKER, &[i_str])?;
-    }
+    mint_and_stake_nft(&mut app, &nft, &module, STAKER, "1")?;
+    mint_and_stake_nft(&mut app, &nft, &module, STAKER, "2")?;
+    mint_and_stake_nft(&mut app, &nft, &module, STAKER, "3")?;
+    mint_and_stake_nft(&mut app, &nft, &module, STAKER, "4")?;
+    mint_and_stake_nft(&mut app, &nft, &module, STAKER, "5")?;
 
-    mint_and_stake_nft(&mut app, &nft, &module, STAKER, "a")?;
-    let res = unstake_nfts(&mut app, &module, STAKER, &["a"]);
-    is_error!(res => "Too many outstanding claims. Claim some tokens before unstaking more.");
+    let claims = query_claims(&app, &module, STAKER)?;
+    assert_eq!(claims.nft_claims, vec![]);
+
+    let res = claim_legacy_nfts(&mut app, &module, STAKER);
+    is_error!(res => "Nothing to claim");
+    let res = claim_nfts(&mut app, &module, STAKER);
+    is_error!(res => "Nothing to claim");
+
+    // insert legacy claims manually
+
+    // taken from cw-multi-test's WasmKeeper::contract_storage in wasm.rs
+    let mut module_namespace = b"contract_data/".to_vec();
+    module_namespace.extend_from_slice(module.as_bytes());
+    let prefix = to_length_prefixed_nested(&[b"wasm", &module_namespace]);
+    let key = Map::<&Addr, Vec<NftClaim>>::new("nft_claims").key(&Addr::unchecked(STAKER));
+    let mut legacy_nft_claims_key = prefix;
+    legacy_nft_claims_key.extend_from_slice(&key);
+
+    let block = app.block_info();
+    app.storage_mut().set(
+        &legacy_nft_claims_key,
+        &to_json_vec(&vec![cw721_controllers_v250::NftClaim {
+            token_id: "4".to_string(),
+            release_at: Duration::Height(1).after(&block),
+        }])
+        .unwrap(),
+    );
+
+    let claims = query_claims(&app, &module, STAKER)?;
+    assert_eq!(
+        claims.nft_claims,
+        vec![NftClaim {
+            token_id: "4".to_string(),
+            release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 1),
+            legacy: true,
+        }]
+    );
+
+    // claim now exists, but is not yet expired. Nothing to claim.
+    let res = claim_legacy_nfts(&mut app, &module, STAKER);
+    is_error!(res => "Nothing to claim");
+    let res = claim_nfts(&mut app, &module, STAKER);
+    is_error!(res => "Nothing to claim");
+
+    app.update_block(next_block);
+
+    // no non-legacy claims
+    let res = claim_nfts(&mut app, &module, STAKER);
+    is_error!(res => "Nothing to claim");
+
+    // legacy claim works
+    claim_legacy_nfts(&mut app, &module, STAKER).unwrap();
+    let owner = query_nft_owner(&app, &nft, "4")?;
+    assert_eq!(owner, STAKER.to_string());
+
+    // unstake non-legacy
+    unstake_nfts(&mut app, &module, STAKER, &["2"])?;
+
+    let claims = query_claims(&app, &module, STAKER)?;
+    assert_eq!(
+        claims.nft_claims,
+        vec![NftClaim {
+            token_id: "2".to_string(),
+            release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 1),
+            legacy: false,
+        }]
+    );
+
+    // Claim now exists, but is not yet expired. Nothing to claim.
+    let res = claim_legacy_nfts(&mut app, &module, STAKER);
+    is_error!(res => "Nothing to claim");
+    let res = claim_nfts(&mut app, &module, STAKER);
+    is_error!(res => "Nothing to claim");
+
+    app.update_block(next_block);
+
+    // no legacy claims
+    let res = claim_legacy_nfts(&mut app, &module, STAKER);
+    is_error!(res => "Nothing to claim");
+
+    claim_nfts(&mut app, &module, STAKER)?;
+
+    let owner = query_nft_owner(&app, &nft, "2")?;
+    assert_eq!(owner, STAKER.to_string());
+
+    // unstake another non-legacy
+    unstake_nfts(&mut app, &module, STAKER, &["3"])?;
+
+    let claims = query_claims(&app, &module, STAKER)?;
+    assert_eq!(
+        claims.nft_claims,
+        vec![NftClaim {
+            token_id: "3".to_string(),
+            release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 1),
+            legacy: false,
+        }]
+    );
+
+    app.update_block(next_block);
+
+    claim_specific_nfts(&mut app, &module, STAKER, &["3".to_string()])?;
+    let owner = query_nft_owner(&app, &nft, "3")?;
+    assert_eq!(owner, STAKER.to_string());
+
+    // unstake legacy
+    let block = app.block_info();
+    app.storage_mut().set(
+        &legacy_nft_claims_key,
+        &to_json_vec(&vec![cw721_controllers_v250::NftClaim {
+            token_id: "5".to_string(),
+            release_at: Duration::Height(1).after(&block),
+        }])
+        .unwrap(),
+    );
+    // unstake non-legacy
+    unstake_nfts(&mut app, &module, STAKER, &["1"])?;
+
+    let claims = query_claims(&app, &module, STAKER)?;
+    assert_eq!(
+        claims.nft_claims,
+        vec![
+            NftClaim {
+                token_id: "5".to_string(),
+                release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 1),
+                legacy: true,
+            },
+            NftClaim {
+                token_id: "1".to_string(),
+                release_at: cw_utils::Expiration::AtHeight(app.block_info().height + 1),
+                legacy: false,
+            }
+        ]
+    );
+
+    app.update_block(next_block);
+
+    // both claims should be ready to claim
+    claim_legacy_nfts(&mut app, &module, STAKER)?;
+    claim_nfts(&mut app, &module, STAKER)?;
+
+    let owner = query_nft_owner(&app, &nft, "1")?;
+    assert_eq!(owner, STAKER.to_string());
+    let owner = query_nft_owner(&app, &nft, "5")?;
+    assert_eq!(owner, STAKER.to_string());
+
+    // no claims left
+    let claims = query_claims(&app, &module, STAKER)?;
+    assert_eq!(claims.nft_claims, vec![]);
 
     Ok(())
 }
@@ -984,35 +1137,6 @@ fn test_query_the_future() -> anyhow::Result<()> {
     let voting = query_voting_power(&app, &module, STAKER, Some(app.block_info().height + 100))?;
     assert_eq!(voting.power, Uint128::zero());
 
-    Ok(())
-}
-
-/// I can not unstake more than one NFT in a TX in order to bypass the
-/// MAX_CLAIMS limit.
-#[test]
-fn test_bypass_max_claims() -> anyhow::Result<()> {
-    let CommonTest {
-        mut app,
-        module,
-        nft,
-        ..
-    } = setup_test(Some(Duration::Height(1)), None);
-    let mut to_stake = vec![];
-    for i in 1..(MAX_CLAIMS + 10) {
-        let i_str = &i.to_string();
-        mint_and_stake_nft(&mut app, &nft, &module, STAKER, i_str)?;
-        if i < MAX_CLAIMS {
-            // unstake MAX_CLAMS - 1 NFTs
-            unstake_nfts(&mut app, &module, STAKER, &[i_str])?;
-        } else {
-            // push rest of NFT ids to vec
-            to_stake.push(i_str.clone());
-        }
-    }
-    let binding = to_stake.iter().map(|s| s.as_str()).collect::<Vec<_>>();
-    let to_stake_slice: &[&str] = binding.as_slice();
-    let res = unstake_nfts(&mut app, &module, STAKER, to_stake_slice);
-    is_error!(res => "Too many outstanding claims. Claim some tokens before unstaking more.");
     Ok(())
 }
 

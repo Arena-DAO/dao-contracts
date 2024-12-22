@@ -1,4 +1,4 @@
-use crate::msg::ExecuteMsg;
+use crate::msg::{ClaimType, ExecuteMsg};
 use anyhow::Result as AnyResult;
 use cosmwasm_std::Addr;
 use cw_multi_test::AppResponse;
@@ -198,7 +198,40 @@ pub fn claim_nfts(app: &mut OmniflixApp, module: &Addr, sender: &str) -> AnyResu
     app.execute_contract(
         addr!(sender),
         module.clone(),
-        &ExecuteMsg::ClaimNfts {},
+        &ExecuteMsg::ClaimNfts {
+            r#type: ClaimType::All,
+        },
+        &[],
+    )
+}
+
+pub fn claim_specific_nfts(
+    app: &mut OmniflixApp,
+    module: &Addr,
+    sender: &str,
+    token_ids: &[String],
+) -> AnyResult<AppResponse> {
+    app.execute_contract(
+        addr!(sender),
+        module.clone(),
+        &ExecuteMsg::ClaimNfts {
+            r#type: ClaimType::Specific(token_ids.to_vec()),
+        },
+        &[],
+    )
+}
+
+pub fn claim_legacy_nfts(
+    app: &mut OmniflixApp,
+    module: &Addr,
+    sender: &str,
+) -> AnyResult<AppResponse> {
+    app.execute_contract(
+        addr!(sender),
+        module.clone(),
+        &ExecuteMsg::ClaimNfts {
+            r#type: ClaimType::Legacy,
+        },
         &[],
     )
 }

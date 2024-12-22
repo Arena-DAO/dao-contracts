@@ -6,17 +6,14 @@ use dao_pre_propose_base::msg::{
 };
 use dao_voting::{proposal::SingleChoiceProposeMsg as ProposeMsg, voting::SingleChoiceAutoVote};
 
-#[cw_serde]
-pub enum ApproverProposeMessage {
-    Propose {
-        title: String,
-        description: String,
-        approval_id: u64,
-    },
-}
+pub use dao_voting::approval::ApprovalExecuteExt as ExecuteExt;
 
 #[cw_serde]
 pub enum ProposeMessage {
+    /// The propose message used to make a proposal to this
+    /// module. Note that this is identical to the propose message
+    /// used by dao-proposal-single, except that it omits the
+    /// `proposer` field which it fills in for the sender.
     Propose {
         title: String,
         description: String,
@@ -28,16 +25,6 @@ pub enum ProposeMessage {
 #[cw_serde]
 pub struct InstantiateExt {
     pub approver: String,
-}
-
-#[cw_serde]
-pub enum ExecuteExt {
-    /// Approve a proposal, only callable by approver
-    Approve { id: u64 },
-    /// Reject a proposal, only callable by approver
-    Reject { id: u64 },
-    /// Updates the approver, can only be called the current approver
-    UpdateApprover { address: String },
 }
 
 #[cw_serde]

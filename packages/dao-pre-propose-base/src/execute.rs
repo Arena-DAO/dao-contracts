@@ -1,9 +1,10 @@
-use cosmwasm_schema::schemars::JsonSchema;
+use cosmwasm_schema::{cw_serde, schemars::JsonSchema};
 use cosmwasm_std::{
-    to_json_binary, Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError,
-    StdResult, SubMsg, WasmMsg,
+    to_json_binary, Addr, Binary, Deps, DepsMut, Env, MessageInfo, Response, StdError, StdResult,
+    SubMsg, Uint128, WasmMsg,
 };
 
+use cw_storage_plus::Item;
 use semver::{Version, VersionReq};
 
 use cw2::{get_contract_version, set_contract_version, ContractVersion};
@@ -23,10 +24,6 @@ use crate::{
     msg::{DepositInfoResponse, ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg},
     state::{Config, PreProposeContract},
 };
-
-use cw_denom_v241::CheckedDenom as CheckedDenomV241;
-use dao_pre_propose_base_v241::state::PreProposeContract as PreProposeContractV241;
-use dao_voting_v241::deposit::DepositRefundPolicy as DepositRefundPolicyV241;
 
 const CONTRACT_NAME: &str = "crates.io::dao-pre-propose-base";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
@@ -547,6 +544,57 @@ where
     ) -> Result<Response, PreProposeError> {
         match msg {
             MigrateMsg::FromUnderV250 { policy } => {
+                #[cw_serde]
+                struct ConfigV241 {
+                    /// Information about the deposit required to create a
+                    /// proposal. If `None`, no deposit is required.
+                    pub deposit_info: Option<CheckedDepositInfoV241>,
+                    /// If false, only members (addresses with voting power) may
+                    /// create proposals in the DAO. Otherwise, any address may
+                    /// create a proposal so long as they pay the deposit.
+                    pub open_proposal_submission: bool,
+                }
+
+                /// Counterpart to the `DepositInfo` struct which has been
+                /// processed. This type should never be constructed literally
+                /// and should always by built by calling `into_checked` on a
+                /// `DepositInfo` instance.
+                #[cw_serde]
+                struct CheckedDepositInfoV241 {
+                    /// The address of the cw20 token to be used for proposal
+                    /// deposits.
+                    pub denom: CheckedDenomV241,
+                    /// The number of tokens that must be deposited to create a
+                    /// proposal. This is validated to be non-zero if this
+                    /// struct is constructed by converted via the
+                    /// `into_checked` method on `DepositInfo`.
+                    pub amount: Uint128,
+                    /// The policy used for refunding proposal deposits.
+                    pub refund_policy: DepositRefundPolicyV241,
+                }
+
+                #[cw_serde]
+                enum DepositRefundPolicyV241 {
+                    /// Deposits should always be refunded.
+                    Always,
+                    /// Deposits should only be refunded for passed proposals.
+                    OnlyPassed,
+                    /// Deposits should never be refunded.
+                    Never,
+                }
+
+                /// A denom that has been checked to point to a valid asset.
+                /// This enum should never be constructed literally and should
+                /// always be built by calling `into_checked` on an
+                /// `UncheckedDenom` instance.
+                #[cw_serde]
+                enum CheckedDenomV241 {
+                    /// A native (bank module) asset.
+                    Native(String),
+                    /// A cw20 asset.
+                    Cw20(Addr),
+                }
+
                 // all contracts >= v2.4.1 and < v2.5.0 have the same config
                 let required_str = ">=2.4.1, <2.5.0";
 
@@ -562,8 +610,7 @@ where
                     });
                 }
 
-                let old_contract = PreProposeContractV241::<Empty, Empty, Empty, Empty>::default();
-                let old_config = old_contract.config.load(deps.storage)?;
+                let old_config = Item::<ConfigV241>::new("config").load(deps.storage)?;
 
                 // if provided a policy to update with, use it
                 let submission_policy = if let Some(submission_policy) = policy {

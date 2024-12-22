@@ -60,6 +60,14 @@ pub enum ExecuteMsg {
     /// claim whatever they earned until this point. this is effectively an
     /// inverse to fund and does not affect any already-distributed rewards.
     Withdraw { id: u64 },
+    /// forcibly withdraw funds from the contract. this is unsafe and should
+    /// only be used to recover funds that are stuck in the contract.
+    UnsafeForceWithdraw {
+        /// amount to withdraw
+        amount: Uint128,
+        /// denom to withdraw
+        denom: UncheckedDenom,
+    },
 }
 
 #[cw_serde]

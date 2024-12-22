@@ -3,55 +3,22 @@ use crate::msg::{
     NativeEntitlementResponse, QueryMsg, TotalPowerResponse, VotingContractResponse,
 };
 use crate::ContractError;
-use cosmwasm_std::{to_json_binary, Addr, Binary, Coin, Empty, Uint128, WasmMsg};
+use cosmwasm_std::{to_json_binary, Addr, Binary, Coin, Uint128, WasmMsg};
 use cw20::Cw20Coin;
-use cw_multi_test::{next_block, App, BankSudo, Contract, ContractWrapper, Executor, SudoMsg};
+use cw_multi_test::{next_block, App, BankSudo, Executor, SudoMsg};
+use dao_testing::contracts::{
+    cw20_base_contract, cw20_stake_contract, dao_voting_cw20_staked_contract,
+};
 
 use crate::msg::ExecuteMsg::{ClaimAll, ClaimCW20, ClaimNatives};
 use crate::msg::QueryMsg::TotalPower;
 use cosmwasm_std::StdError::GenericErr;
 use cw_utils::Duration;
 
+use super::cw_fund_distributor_contract;
+
 const CREATOR_ADDR: &str = "creator";
 const FEE_DENOM: &str = "ujuno";
-
-fn distributor_contract() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
-        crate::contract::execute,
-        crate::contract::instantiate,
-        crate::contract::query,
-    )
-    .with_migrate(crate::contract::migrate);
-    Box::new(contract)
-}
-
-fn cw20_contract() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
-        cw20_base::contract::execute,
-        cw20_base::contract::instantiate,
-        cw20_base::contract::query,
-    );
-    Box::new(contract)
-}
-
-fn staked_balances_voting_contract() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
-        dao_voting_cw20_staked::contract::execute,
-        dao_voting_cw20_staked::contract::instantiate,
-        dao_voting_cw20_staked::contract::query,
-    )
-    .with_reply(dao_voting_cw20_staked::contract::reply);
-    Box::new(contract)
-}
-
-fn cw20_staking_contract() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
-        cw20_stake::contract::execute,
-        cw20_stake::contract::instantiate,
-        cw20_stake::contract::query,
-    );
-    Box::new(contract)
-}
 
 struct BaseTest {
     app: App,
@@ -61,10 +28,10 @@ struct BaseTest {
 
 fn setup_test(initial_balances: Vec<Cw20Coin>) -> BaseTest {
     let mut app = App::default();
-    let distributor_id = app.store_code(distributor_contract());
-    let cw20_id = app.store_code(cw20_contract());
-    let voting_id = app.store_code(staked_balances_voting_contract());
-    let stake_cw20_id = app.store_code(cw20_staking_contract());
+    let distributor_id = app.store_code(cw_fund_distributor_contract());
+    let cw20_id = app.store_code(cw20_base_contract());
+    let voting_id = app.store_code(dao_voting_cw20_staked_contract());
+    let stake_cw20_id = app.store_code(cw20_stake_contract());
 
     let voting_address = app
         .instantiate_contract(
@@ -196,7 +163,7 @@ pub fn mint_natives(app: &mut App, recipient: Addr, amount: Uint128) {
     .unwrap();
 }
 
-pub fn fund_distributor_contract_cw20(
+pub fn fund_cw_fund_distributor_contract_cw20(
     app: &mut App,
     distributor_address: Addr,
     token_address: Addr,
@@ -216,7 +183,7 @@ pub fn fund_distributor_contract_cw20(
     .unwrap();
 }
 
-pub fn fund_distributor_contract_natives(
+pub fn fund_cw_fund_distributor_contract_natives(
     app: &mut App,
     distributor_address: Addr,
     amount: Uint128,
@@ -237,7 +204,7 @@ pub fn fund_distributor_contract_natives(
 #[test]
 fn test_instantiate_fails_given_invalid_voting_contract_address() {
     let mut app = App::default();
-    let distributor_id = app.store_code(distributor_contract());
+    let distributor_id = app.store_code(cw_fund_distributor_contract());
 
     let expected_error: ContractError = app
         .instantiate_contract(
@@ -265,10 +232,10 @@ fn test_instantiate_fails_given_invalid_voting_contract_address() {
 #[test]
 fn test_instantiate_fails_zero_voting_power() {
     let mut app = App::default();
-    let distributor_id = app.store_code(distributor_contract());
-    let cw20_id = app.store_code(cw20_contract());
-    let voting_id = app.store_code(staked_balances_voting_contract());
-    let stake_cw20_id = app.store_code(cw20_staking_contract());
+    let distributor_id = app.store_code(cw_fund_distributor_contract());
+    let cw20_id = app.store_code(cw20_base_contract());
+    let voting_id = app.store_code(dao_voting_cw20_staked_contract());
+    let stake_cw20_id = app.store_code(cw20_stake_contract());
 
     let initial_balances = vec![Cw20Coin {
         address: "bekauz".to_string(),
@@ -376,7 +343,7 @@ fn test_fund_cw20() {
 
     let first_fund_amount = Uint128::new(20000);
     // fund the contract for the first time
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address.clone(),
@@ -391,7 +358,7 @@ fn test_fund_cw20() {
 
     let second_fund_amount = amount.checked_sub(first_fund_amount).unwrap();
     // fund the remaining part
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address.clone(),
@@ -464,7 +431,7 @@ pub fn test_fund_natives() {
     let amount = Uint128::new(500000);
 
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -476,7 +443,7 @@ pub fn test_fund_natives() {
 
     // fund again with an existing balance with an existing balance, fund
     mint_natives(&mut app, Addr::unchecked("bekauz"), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -571,7 +538,7 @@ pub fn test_claim_cw20() {
     );
 
     // fund the contract
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address.clone(),
@@ -641,7 +608,7 @@ pub fn test_claim_cw20_twice() {
     );
 
     // fund the contract
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address.clone(),
@@ -715,7 +682,7 @@ pub fn test_claim_cw20s_empty_list() {
     );
 
     // fund the contract
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address,
@@ -760,7 +727,7 @@ pub fn test_claim_natives_twice() {
     let amount = Uint128::new(500000);
 
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -823,7 +790,7 @@ pub fn test_claim_natives() {
     let amount = Uint128::new(500000);
 
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -876,7 +843,7 @@ pub fn test_claim_all() {
     let amount = Uint128::new(500000);
     // mint and fund the distributor with native & cw20 tokens
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -889,7 +856,7 @@ pub fn test_claim_all() {
         amount,
         Addr::unchecked(CREATOR_ADDR),
     );
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address.clone(),
@@ -956,7 +923,7 @@ pub fn test_claim_natives_empty_list_of_denoms() {
     let amount = Uint128::new(500000);
 
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -1002,11 +969,11 @@ pub fn test_redistribute_unclaimed_funds() {
             amount: Uint128::new(20),
         },
     ]);
-    let distributor_id = app.store_code(distributor_contract());
+    let distributor_id = app.store_code(cw_fund_distributor_contract());
     let amount = Uint128::new(500000);
 
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -1103,14 +1070,14 @@ pub fn test_unauthorized_redistribute_unclaimed_funds() {
 
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
 
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
         Addr::unchecked(CREATOR_ADDR),
     );
 
-    let distributor_id = app.store_code(distributor_contract());
+    let distributor_id = app.store_code(cw_fund_distributor_contract());
     let migrate_msg = &MigrateMsg::RedistributeUnclaimedFunds {
         distribution_height: app.block_info().height,
     };
@@ -1149,7 +1116,7 @@ pub fn test_claim_cw20_during_funding_period() {
     );
 
     // fund the contract
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address.clone(),
@@ -1197,7 +1164,7 @@ pub fn test_claim_natives_during_funding_period() {
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
 
     // fund the contract
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -1241,7 +1208,7 @@ pub fn test_claim_all_during_funding_period() {
     let amount = Uint128::new(500000);
 
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -1377,7 +1344,7 @@ fn test_query_cw20_entitlements() {
         amount,
         Addr::unchecked(CREATOR_ADDR),
     );
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address.clone(),
@@ -1431,7 +1398,7 @@ fn test_query_native_entitlements() {
     // fund the contract with some native tokens
     let amount = Uint128::new(500000);
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -1476,7 +1443,7 @@ fn test_query_cw20_entitlement() {
         amount,
         Addr::unchecked(CREATOR_ADDR),
     );
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address.clone(),
@@ -1539,7 +1506,7 @@ fn test_query_native_entitlement() {
     // fund the contract with some native tokens
     let amount = Uint128::new(500000);
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,
@@ -1585,7 +1552,7 @@ fn test_query_cw20_tokens() {
         amount,
         Addr::unchecked(CREATOR_ADDR),
     );
-    fund_distributor_contract_cw20(
+    fund_cw_fund_distributor_contract_cw20(
         &mut app,
         distributor_address.clone(),
         token_address,
@@ -1628,7 +1595,7 @@ fn test_query_native_denoms() {
     // mint and fund the distributor with a native token
     let amount = Uint128::new(500000);
     mint_natives(&mut app, Addr::unchecked(CREATOR_ADDR), amount);
-    fund_distributor_contract_natives(
+    fund_cw_fund_distributor_contract_natives(
         &mut app,
         distributor_address.clone(),
         amount,

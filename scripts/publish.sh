@@ -31,7 +31,7 @@ START_DIR=$(pwd)
 # Packages
 
 cd packages/cw-denom
-cargo publish
+cargo hack publish --no-dev-deps --allow-dirty
 cd "$START_DIR"
 
 cd packages/cw-hooks
@@ -50,7 +50,7 @@ cd packages/cw-paginate-storage
 cargo publish
 cd "$START_DIR"
 
-cd packages/cw721-controllers
+cd packages/nft-controllers
 cargo publish
 cd "$START_DIR"
 
@@ -68,11 +68,11 @@ cd packages/dao-dao-macros
 cargo hack publish --no-dev-deps --allow-dirty
 cd "$START_DIR"
 
-cd packages/dao-pre-propose-base
+cd packages/dao-voting
 cargo publish
 cd "$START_DIR"
 
-cd packages/dao-voting
+cd packages/dao-pre-propose-base
 cargo publish
 cd "$START_DIR"
 
@@ -93,7 +93,7 @@ cd "$START_DIR"
 sleep 120
 
 cd contracts/test/dao-voting-cw20-balance
-cargo publish
+cargo hack publish --no-dev-deps --allow-dirty
 cd "$START_DIR"
 
 cd contracts/test/dao-proposal-hook-counter
@@ -203,11 +203,6 @@ cd "$START_DIR"
 cd contracts/external/cw-admin-factory
 cargo hack publish --no-dev-deps --allow-dirty
 cd "$START_DIR"
-
-# TODO: uncomment once cleaned up and audited
-# cd contracts/distribution/cw-fund-distributor
-# cargo hack publish --no-dev-deps --allow-dirty
-# cd "$START_DIR"
 
 cd contracts/distribution/dao-rewards-distributor
 cargo hack publish --no-dev-deps --allow-dirty

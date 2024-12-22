@@ -1,19 +1,28 @@
-use cosmwasm_std::{
-    coins, from_json, to_json_binary, Addr, Coin, CosmosMsg, Empty, Uint128, WasmMsg,
-};
+use cosmwasm_std::{coins, from_json, to_json_binary, Addr, Coin, CosmosMsg, Uint128, WasmMsg};
 use cw2::ContractVersion;
 use cw20::Cw20Coin;
 use cw_denom::UncheckedDenom;
-use cw_multi_test::{App, BankSudo, Contract, ContractWrapper, Executor};
+use cw_multi_test::{App, BankSudo, Executor};
 use cw_utils::Duration;
 use dao_interface::proposal::InfoResponse;
 use dao_interface::state::ProposalModule;
 use dao_interface::state::{Admin, ModuleInstantiateInfo};
 use dao_pre_propose_base::{error::PreProposeError, msg::DepositInfoResponse, state::Config};
 use dao_proposal_single::query::ProposalResponse;
-use dao_testing::{contracts::cw4_group_contract, helpers::instantiate_with_cw4_groups_governance};
+use dao_testing::{
+    contracts::{
+        cw20_base_contract, cw4_group_contract, dao_pre_propose_approval_single_contract,
+        dao_proposal_single_contract,
+        v241::{
+            dao_dao_core_v241_contract, dao_pre_propose_approval_single_v241_contract,
+            dao_proposal_single_v241_contract, dao_voting_cw4_v241_contract,
+        },
+    },
+    helpers::instantiate_with_cw4_groups_governance,
+};
 use dao_voting::pre_propose::{PreProposeSubmissionPolicy, PreProposeSubmissionPolicyError};
 use dao_voting::{
+    approval::ApprovalProposalStatus,
     deposit::{CheckedDepositInfo, DepositRefundPolicy, DepositToken, UncheckedDepositInfo},
     pre_propose::{PreProposeInfo, ProposalCreationPolicy},
     status::Status,
@@ -22,40 +31,14 @@ use dao_voting::{
 };
 
 // test v2.4.1 migration
-use dao_dao_core_v241 as core_v241;
 use dao_interface_v241 as di_v241;
 use dao_pre_propose_approval_single_v241 as dppas_v241;
 use dao_proposal_single_v241 as dps_v241;
 use dao_voting_cw4_v241 as dvcw4_v241;
 use dao_voting_v241 as dv_v241;
 
-use crate::state::{Proposal, ProposalStatus};
+use crate::state::Proposal;
 use crate::{contract::*, msg::*};
-
-fn dao_proposal_single_contract() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
-        dao_proposal_single::contract::execute,
-        dao_proposal_single::contract::instantiate,
-        dao_proposal_single::contract::query,
-    )
-    .with_migrate(dao_proposal_single::contract::migrate)
-    .with_reply(dao_proposal_single::contract::reply);
-    Box::new(contract)
-}
-
-fn dao_pre_propose_approval_single_contract() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(execute, instantiate, query).with_migrate(migrate);
-    Box::new(contract)
-}
-
-fn cw20_base_contract() -> Box<dyn Contract<Empty>> {
-    let contract = ContractWrapper::new(
-        cw20_base::contract::execute,
-        cw20_base::contract::instantiate,
-        cw20_base::contract::query,
-    );
-    Box::new(contract)
-}
 
 fn get_default_proposal_module_instantiate(
     app: &mut App,
@@ -933,7 +916,7 @@ fn test_pending_proposal_queries() {
         )
         .unwrap();
     assert_eq!(prop1.approval_id, 1);
-    assert_eq!(prop1.status, ProposalStatus::Pending {});
+    assert_eq!(prop1.status, ApprovalProposalStatus::Pending {});
 
     let prop1: Proposal = app
         .wrap()
@@ -945,7 +928,7 @@ fn test_pending_proposal_queries() {
         )
         .unwrap();
     assert_eq!(prop1.approval_id, 1);
-    assert_eq!(prop1.status, ProposalStatus::Pending {});
+    assert_eq!(prop1.status, ApprovalProposalStatus::Pending {});
 
     // Query for the pre-propose proposals
     let pre_propose_props: Vec<Proposal> = app
@@ -1043,7 +1026,7 @@ fn test_completed_proposal_queries() {
         .unwrap();
     assert_eq!(
         prop1.status,
-        ProposalStatus::Approved {
+        ApprovalProposalStatus::Approved {
             created_proposal_id: created_approved_id
         }
     );
@@ -1058,7 +1041,7 @@ fn test_completed_proposal_queries() {
         .unwrap();
     assert_eq!(
         prop1.status,
-        ProposalStatus::Approved {
+        ApprovalProposalStatus::Approved {
             created_proposal_id: created_approved_id
         }
     );
@@ -1085,7 +1068,7 @@ fn test_completed_proposal_queries() {
             },
         )
         .unwrap();
-    assert_eq!(prop2.status, ProposalStatus::Rejected {});
+    assert_eq!(prop2.status, ApprovalProposalStatus::Rejected {});
 
     // Query for the pre-propose proposals
     let pre_propose_props: Vec<Proposal> = app
@@ -1247,10 +1230,10 @@ fn test_approval_and_rejection_permissions() {
         &coins(10, "ujuno"),
     );
 
-    // Only approver can propose
+    // Only approver can approve
     let err: PreProposeError = app
         .execute_contract(
-            Addr::unchecked("nonmember"),
+            Addr::unchecked("nonapprover"),
             pre_propose.clone(),
             &ExecuteMsg::Extension {
                 msg: ExecuteExt::Approve { id: pre_propose_id },
@@ -1262,11 +1245,11 @@ fn test_approval_and_rejection_permissions() {
         .unwrap();
     assert_eq!(err, PreProposeError::Unauthorized {});
 
-    // Only approver can propose
+    // Only approver can reject
     let err: PreProposeError = app
         .execute_contract(
-            Addr::unchecked("nonmember"),
-            pre_propose,
+            Addr::unchecked("nonapprover"),
+            pre_propose.clone(),
             &ExecuteMsg::Extension {
                 msg: ExecuteExt::Reject { id: pre_propose_id },
             },
@@ -1276,6 +1259,94 @@ fn test_approval_and_rejection_permissions() {
         .downcast()
         .unwrap();
     assert_eq!(err, PreProposeError::Unauthorized {});
+
+    // Updating approver after proposal created does not change old proposal's
+    // approver
+    app.execute_contract(
+        Addr::unchecked("approver"),
+        pre_propose.clone(),
+        &ExecuteMsg::Extension {
+            msg: ExecuteExt::UpdateApprover {
+                address: "newapprover".to_string(),
+            },
+        },
+        &[],
+    )
+    .unwrap();
+
+    let err: PreProposeError = app
+        .execute_contract(
+            Addr::unchecked("newapprover"),
+            pre_propose.clone(),
+            &ExecuteMsg::Extension {
+                msg: ExecuteExt::Approve { id: pre_propose_id },
+            },
+            &[],
+        )
+        .unwrap_err()
+        .downcast()
+        .unwrap();
+    assert_eq!(err, PreProposeError::Unauthorized {});
+
+    // Old approver can still approve.
+    app.execute_contract(
+        Addr::unchecked("approver"),
+        pre_propose.clone(),
+        &ExecuteMsg::Extension {
+            msg: ExecuteExt::Approve { id: pre_propose_id },
+        },
+        &[],
+    )
+    .unwrap();
+
+    // Non-member proposes.
+    mint_natives(&mut app, "nonmember", coins(10, "ujuno"));
+    let pre_propose_id = make_pre_proposal(
+        &mut app,
+        pre_propose.clone(),
+        "nonmember",
+        &coins(10, "ujuno"),
+    );
+
+    // Old approver cannot approve nor reject.
+    let err: PreProposeError = app
+        .execute_contract(
+            Addr::unchecked("approver"),
+            pre_propose.clone(),
+            &ExecuteMsg::Extension {
+                msg: ExecuteExt::Approve { id: pre_propose_id },
+            },
+            &[],
+        )
+        .unwrap_err()
+        .downcast()
+        .unwrap();
+    assert_eq!(err, PreProposeError::Unauthorized {});
+
+    let err: PreProposeError = app
+        .execute_contract(
+            Addr::unchecked("approver"),
+            pre_propose.clone(),
+            &ExecuteMsg::Extension {
+                msg: ExecuteExt::Reject { id: pre_propose_id },
+            },
+            &[],
+        )
+        .unwrap_err()
+        .downcast()
+        .unwrap();
+    assert_eq!(err, PreProposeError::Unauthorized {});
+
+    // New approver can now approve.
+    app.execute_contract(
+        Addr::unchecked("newapprover"),
+        pre_propose.clone(),
+        &ExecuteMsg::Extension {
+            msg: ExecuteExt::Approve { id: pre_propose_id },
+        },
+        &[],
+    )
+    .unwrap();
 }
 
 #[test]
@@ -2492,41 +2563,11 @@ fn test_withdraw() {
 fn test_migrate_from_v241() {
     let app = &mut App::default();
 
-    let core_v241_contract = Box::new(
-        ContractWrapper::new(
-            core_v241::contract::execute,
-            core_v241::contract::instantiate,
-            core_v241::contract::query,
-        )
-        .with_reply(core_v241::contract::reply),
-    );
-    let dvcw4_v241_contract = Box::new(
-        ContractWrapper::new(
-            dvcw4_v241::contract::execute,
-            dvcw4_v241::contract::instantiate,
-            dvcw4_v241::contract::query,
-        )
-        .with_reply(dvcw4_v241::contract::reply),
-    );
-    let dpps_v241_contract = Box::new(ContractWrapper::new(
-        dppas_v241::contract::execute,
-        dppas_v241::contract::instantiate,
-        dppas_v241::contract::query,
-    ));
-    let dps_v241_contract = Box::new(
-        ContractWrapper::new(
-            dps_v241::contract::execute,
-            dps_v241::contract::instantiate,
-            dps_v241::contract::query,
-        )
-        .with_reply(dps_v241::contract::reply),
-    );
-
-    let core_id = app.store_code(core_v241_contract);
+    let core_id = app.store_code(dao_dao_core_v241_contract());
     let cw4_id = app.store_code(cw4_group_contract());
-    let dvcw4_v241_id = app.store_code(dvcw4_v241_contract);
-    let dpps_v241_id = app.store_code(dpps_v241_contract);
-    let dps_v241_id = app.store_code(dps_v241_contract);
+    let dvcw4_v241_id = app.store_code(dao_voting_cw4_v241_contract());
+    let dpps_v241_id = app.store_code(dao_pre_propose_approval_single_v241_contract());
+    let dps_v241_id = app.store_code(dao_proposal_single_v241_contract());
 
     let governance_instantiate = di_v241::msg::InstantiateMsg {
         dao_uri: None,
@@ -2848,41 +2889,11 @@ fn test_migrate_from_v241() {
 fn test_migrate_from_v241_with_policy_update() {
     let app = &mut App::default();
 
-    let core_v241_contract = Box::new(
-        ContractWrapper::new(
-            core_v241::contract::execute,
-            core_v241::contract::instantiate,
-            core_v241::contract::query,
-        )
-        .with_reply(core_v241::contract::reply),
-    );
-    let dvcw4_v241_contract = Box::new(
-        ContractWrapper::new(
-            dvcw4_v241::contract::execute,
-            dvcw4_v241::contract::instantiate,
-            dvcw4_v241::contract::query,
-        )
-        .with_reply(dvcw4_v241::contract::reply),
-    );
-    let dpps_v241_contract = Box::new(ContractWrapper::new(
-        dppas_v241::contract::execute,
-        dppas_v241::contract::instantiate,
-        dppas_v241::contract::query,
-    ));
-    let dps_v241_contract = Box::new(
-        ContractWrapper::new(
-            dps_v241::contract::execute,
-            dps_v241::contract::instantiate,
-            dps_v241::contract::query,
-        )
-        .with_reply(dps_v241::contract::reply),
-    );
-
-    let core_id = app.store_code(core_v241_contract);
+    let core_id = app.store_code(dao_dao_core_v241_contract());
     let cw4_id = app.store_code(cw4_group_contract());
-    let dvcw4_v241_id = app.store_code(dvcw4_v241_contract);
-    let dpps_v241_id = app.store_code(dpps_v241_contract);
-    let dps_v241_id = app.store_code(dps_v241_contract);
+    let dvcw4_v241_id = app.store_code(dao_voting_cw4_v241_contract());
+    let dpps_v241_id = app.store_code(dao_pre_propose_approval_single_v241_contract());
+    let dps_v241_id = app.store_code(dao_proposal_single_v241_contract());
 
     let governance_instantiate = di_v241::msg::InstantiateMsg {
         dao_uri: None,
