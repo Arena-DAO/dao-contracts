@@ -1,0 +1,13 @@
+{
+  "name": "scripts",
+  "version": "1.0.0",
+  "main": "index.js",
+  "license": "MIT",
+  "scripts": {
+    "gen": "ts-node src/codegen.ts"
+  },
+  "dependencies": {
+    "@cosmwasm/ts-codegen": "^1.12.0",
+    "glob": "^11.0.0"
+  }
+}
