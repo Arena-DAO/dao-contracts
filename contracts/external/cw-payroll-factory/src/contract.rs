@@ -126,7 +126,7 @@ pub fn instantiate_contract(
     if ownership
         .owner
         .as_ref()
-        .map_or(false, |owner| *owner != sender)
+        .is_some_and(|owner| *owner != sender)
     {
         return Err(ContractError::Unauthorized {});
     }
