@@ -9,9 +9,9 @@ use v1::DaoDaoCoreV1;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{
-    from_json,
+    coins, from_json,
     testing::{mock_dependencies, mock_env},
-    to_json_binary, Addr, CosmosMsg, Empty, Storage, Uint128, WasmMsg,
+    to_json_binary, Addr, BankMsg, CosmosMsg, Empty, Storage, Uint128, WasmMsg,
 };
 use cw2::{set_contract_version, ContractVersion};
 use cw_orch::prelude::*;
@@ -93,19 +93,22 @@ fn test_instantiate_with_n_gov_modules(n: usize) {
             code_id: cw20_id,
             msg: to_json_binary(&cw20_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: (0..n)
             .map(|n| ModuleInstantiateInfo {
                 code_id: cw20_id,
                 msg: to_json_binary(&cw20_instantiate).unwrap(),
                 admin: Some(Admin::CoreModule {}),
-                funds: vec![],
+                funds: None,
                 label: format!("governance module {n}"),
+                salt: None,
             })
             .collect(),
         initial_items: None,
+        initial_actions: None,
     };
     gov.instantiate(&instantiate, None, None).unwrap();
 
@@ -127,6 +130,8 @@ fn test_instantiate_with_n_gov_modules(n: usize) {
 
     assert_eq!(state.active_proposal_module_count, n as u32);
     assert_eq!(state.total_proposal_module_count, n as u32);
+
+    assert_eq!(state.initial_actions, vec![]);
 }
 
 #[test]
@@ -169,26 +174,29 @@ fn test_instantiate_with_submessage_failure() {
             code_id: cw20_id,
             msg: to_json_binary(&cw20_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: format!("governance module {n}"),
+            salt: None,
         })
         .collect::<Vec<_>>();
     governance_modules.push(ModuleInstantiateInfo {
         code_id: cw20_id,
         msg: to_json_binary("bad").unwrap(),
         admin: Some(Admin::CoreModule {}),
-        funds: vec![],
+        funds: None,
         label: "I have a bad instantiate message".to_string(),
+        salt: None,
     });
     governance_modules.push(ModuleInstantiateInfo {
         code_id: cw20_id,
         msg: to_json_binary(&cw20_instantiate).unwrap(),
         admin: Some(Admin::CoreModule {}),
-        funds: vec![],
+        funds: None,
         label: "Everybody knowing
 that goodness is good
 makes wickedness."
             .to_string(),
+        salt: None,
     });
 
     let instantiate = InstantiateMsg {
@@ -203,11 +211,13 @@ makes wickedness."
             code_id: cw20_id,
             msg: to_json_binary(&cw20_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: governance_modules,
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&instantiate, None, None).unwrap();
@@ -238,17 +248,20 @@ fn test_update_config() -> cw_orch::anyhow::Result<()> {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate)?,
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate)?,
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         }],
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None)?;
@@ -305,17 +318,20 @@ fn test_swap_governance(swaps: Vec<(u32, u32)>) {
             code_id: propmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: propmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "governance module".to_string(),
+            salt: None,
         }],
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -350,8 +366,9 @@ fn test_swap_governance(swaps: Vec<(u32, u32)>) {
                 code_id: propmod_id,
                 msg: to_json_binary(&govmod_instantiate).unwrap(),
                 admin: Some(Admin::CoreModule {}),
-                funds: vec![],
+                funds: None,
                 label: format!("governance module {n}"),
+                salt: None,
             })
             .collect();
 
@@ -451,17 +468,20 @@ fn test_removed_modules_can_not_execute() {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "governance module".to_string(),
+            salt: None,
         }],
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -477,8 +497,9 @@ fn test_removed_modules_can_not_execute() {
         code_id: govmod_id,
         msg: to_json_binary(&govmod_instantiate).unwrap(),
         admin: Some(Admin::CoreModule {}),
-        funds: vec![],
+        funds: None,
         label: "new governance module".to_string(),
+        salt: None,
     }];
 
     let to_disable = vec![start_module.address.to_string()];
@@ -503,8 +524,9 @@ fn test_removed_modules_can_not_execute() {
         code_id: govmod_id,
         msg: to_json_binary(&govmod_instantiate).unwrap(),
         admin: Some(Admin::CoreModule {}),
-        funds: vec![],
+        funds: None,
         label: "new governance module".to_string(),
+        salt: None,
     }];
     let to_disable = vec![new_proposal_module.address.to_string()];
 
@@ -570,17 +592,20 @@ fn test_module_already_disabled() {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "governance module".to_string(),
+            salt: None,
         }],
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -647,17 +672,20 @@ fn test_swap_voting_module() {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "governance module".to_string(),
+            salt: None,
         }],
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -717,19 +745,22 @@ fn test_permissions() {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "governance module".to_string(),
+            salt: None,
         }],
         initial_items: None,
         automatically_add_cw20s: true,
         automatically_add_cw721s: true,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -741,8 +772,9 @@ fn test_permissions() {
                 code_id: govmod_id,
                 msg: to_json_binary(&govmod_instantiate).unwrap(),
                 admin: Some(Admin::CoreModule {}),
-                funds: vec![],
+                funds: None,
                 label: "voting module".to_string(),
+                salt: None,
             },
         },
     );
@@ -805,6 +837,7 @@ fn do_standard_instantiate(
                 amount: Uint128::from(2u64),
             }],
             marketing: None,
+            salt: None,
         },
     };
     let admin = admin.then(|| mock.addr_make("admin"));
@@ -821,17 +854,20 @@ fn do_standard_instantiate(
             code_id: voting.code_id().unwrap(),
             msg: to_json_binary(&voting_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: gov_mod.code_id().unwrap(),
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "governance module".to_string(),
+            salt: None,
         }],
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -1248,6 +1284,7 @@ fn test_list_items() {
                 amount: Uint128::from(2u64),
             }],
             marketing: None,
+            salt: None,
         },
     };
 
@@ -1263,17 +1300,20 @@ fn test_list_items() {
             code_id: voting.code_id().unwrap(),
             msg: to_json_binary(&voting_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: govmod.code_id().unwrap(),
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "governance module".to_string(),
+            salt: None,
         }],
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -1349,6 +1389,7 @@ fn test_instantiate_with_items() {
                 amount: Uint128::from(2u64),
             }],
             marketing: None,
+            salt: None,
         },
     };
 
@@ -1379,17 +1420,20 @@ fn test_instantiate_with_items() {
             code_id: voting.code_id().unwrap(),
             msg: to_json_binary(&voting_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: govmod.code_id().unwrap(),
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "governance module".to_string(),
+            salt: None,
         }],
         initial_items: Some(initial_items.clone()),
+        initial_actions: None,
     };
 
     // Ensure duplicates are dissallowed.
@@ -1913,6 +1957,7 @@ fn test_migrate_from_compatible() {
                 amount: Uint128::from(2u64),
             }],
             marketing: None,
+            salt: None,
         },
     };
 
@@ -1929,17 +1974,20 @@ fn test_migrate_from_compatible() {
             code_id: voting.code_id().unwrap(),
             msg: to_json_binary(&voting_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
             code_id: govmod.code_id().unwrap(),
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "governance module".to_string(),
+            salt: None,
         }],
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, Some(&mock.sender_addr()), None)
@@ -1987,6 +2035,7 @@ fn test_migrate_from_beta() {
                 amount: Uint128::from(2u64),
             }],
             marketing: None,
+            salt: None,
         },
     };
 
@@ -2169,33 +2218,38 @@ fn test_module_prefixes() {
             code_id: govmod_id,
             msg: to_json_binary(&govmod_instantiate).unwrap(),
             admin: Some(Admin::CoreModule {}),
-            funds: vec![],
+            funds: None,
             label: "voting module".to_string(),
+            salt: None,
         },
         proposal_modules_instantiate_info: vec![
             ModuleInstantiateInfo {
                 code_id: govmod_id,
                 msg: to_json_binary(&govmod_instantiate).unwrap(),
                 admin: Some(Admin::CoreModule {}),
-                funds: vec![],
+                funds: None,
                 label: "proposal module 1".to_string(),
+                salt: None,
             },
             ModuleInstantiateInfo {
                 code_id: govmod_id,
                 msg: to_json_binary(&govmod_instantiate).unwrap(),
                 admin: Some(Admin::CoreModule {}),
-                funds: vec![],
+                funds: None,
                 label: "proposal module 2".to_string(),
+                salt: None,
             },
             ModuleInstantiateInfo {
                 code_id: govmod_id,
                 msg: to_json_binary(&govmod_instantiate).unwrap(),
                 admin: Some(Admin::CoreModule {}),
-                funds: vec![],
+                funds: None,
                 label: "proposal module 2".to_string(),
+                salt: None,
             },
         ],
         initial_items: None,
+        initial_actions: None,
     };
 
     gov.instantiate(&gov_instantiate, None, None).unwrap();
@@ -2311,4 +2365,148 @@ fn test_query_info() {
             }
         }
     )
+}
+
+#[test]
+fn test_initial_actions() {
+    let mut app = App::default();
+    let govmod_id = app.store_code(dao_proposal_sudo_contract());
+    let voting_id = app.store_code(dao_voting_cw20_balance_contract());
+    let gov_id = app.store_code(dao_dao_core_contract());
+    let cw20_id = app.store_code(cw20_base_contract());
+
+    // Mint 100 tokens for CREATOR.
+    app.sudo(SudoMsg::Bank(BankSudo::Mint {
+        to_address: CREATOR_ADDR.to_string(),
+        amount: coins(100, DENOM),
+    }))
+    .unwrap();
+
+    let govmod_instantiate = dao_proposal_sudo::msg::InstantiateMsg {
+        root: CREATOR_ADDR.to_string(),
+    };
+    let voting_instantiate = dao_voting_cw20_balance::msg::InstantiateMsg {
+        token_info: dao_voting_cw20_balance::msg::TokenInfo::New {
+            code_id: cw20_id,
+            label: "DAO DAO voting".to_string(),
+            name: "DAO DAO".to_string(),
+            symbol: "DAO".to_string(),
+            decimals: 6,
+            initial_balances: vec![cw20::Cw20Coin {
+                address: CREATOR_ADDR.to_string(),
+                amount: Uint128::from(2u64),
+            }],
+            marketing: None,
+            salt: None,
+        },
+    };
+
+    let gov_instantiate = InstantiateMsg {
+        dao_uri: None,
+        admin: None,
+        name: "DAO DAO".to_string(),
+        description: "A DAO that builds DAOs.".to_string(),
+        image_url: None,
+        automatically_add_cw20s: false,
+        automatically_add_cw721s: false,
+        voting_module_instantiate_info: ModuleInstantiateInfo {
+            code_id: voting_id,
+            msg: to_json_binary(&voting_instantiate).unwrap(),
+            admin: Some(Admin::CoreModule {}),
+            funds: None,
+            label: "voting module".to_string(),
+            salt: None,
+        },
+        proposal_modules_instantiate_info: vec![ModuleInstantiateInfo {
+            code_id: govmod_id,
+            msg: to_json_binary(&govmod_instantiate).unwrap(),
+            admin: Some(Admin::CoreModule {}),
+            funds: None,
+            label: "governance module".to_string(),
+            salt: None,
+        }],
+        initial_items: None,
+        // Send 50 tokens to CREATOR on instantiation from the DAO's account.
+        initial_actions: Some(vec![CosmosMsg::Bank(BankMsg::Send {
+            to_address: CREATOR_ADDR.to_string(),
+            amount: coins(50, DENOM),
+        })]),
+    };
+
+    // Instantiating without giving the DAO tokens should fail...
+
+    // cannot send tokens that the DAO does not have
+    let err: ContractError = app
+        .instantiate_contract(
+            gov_id,
+            Addr::unchecked(CREATOR_ADDR),
+            &gov_instantiate,
+            &[],
+            "cw-governance",
+            None,
+        )
+        .unwrap_err()
+        .downcast()
+        .unwrap();
+    assert!(matches!(err, ContractError::InitialActionsError { .. }));
+    assert!(err.to_string().contains("Cannot Sub with 0 and 50"));
+
+    // Creator still has 100 tokens.
+    assert_eq!(
+        app.wrap()
+            .query_balance(CREATOR_ADDR, DENOM)
+            .unwrap()
+            .amount,
+        Uint128::from(100u128)
+    );
+
+    // Instantiating with tokens should succeed...
+    let dao = app
+        .instantiate_contract(
+            gov_id,
+            Addr::unchecked(CREATOR_ADDR),
+            &gov_instantiate,
+            &coins(75, DENOM),
+            "dao",
+            None,
+        )
+        .unwrap();
+
+    // Creator sent 75 tokens and received 50 back...
+    assert_eq!(
+        app.wrap()
+            .query_balance(CREATOR_ADDR, DENOM)
+            .unwrap()
+            .amount,
+        Uint128::from(75u128)
+    );
+    // DAO received 75 tokens and sent 50 back...
+    assert_eq!(
+        app.wrap().query_balance(&dao, DENOM).unwrap().amount,
+        Uint128::from(25u128)
+    );
+
+    let initial_actions: Vec<CosmosMsg> = app
+        .wrap()
+        .query_wasm_smart(&dao, &QueryMsg::InitialActions {})
+        .unwrap();
+    assert_eq!(
+        initial_actions,
+        vec![CosmosMsg::Bank(BankMsg::Send {
+            to_address: CREATOR_ADDR.to_string(),
+            amount: coins(50, DENOM),
+        })]
+    );
+
+    let dump_state: DumpStateResponse = app
+        .wrap()
+        .query_wasm_smart(&dao, &QueryMsg::DumpState {})
+        .unwrap();
+    assert_eq!(
+        dump_state.initial_actions,
+        vec![CosmosMsg::Bank(BankMsg::Send {
+            to_address: CREATOR_ADDR.to_string(),
+            amount: coins(50, DENOM),
+        })]
+    );
 }
