@@ -700,7 +700,6 @@ pub fn reply(deps: DepsMut, env: Env, msg: Reply) -> Result<Response, ContractEr
                     #[cfg(any(
                         feature = "osmosis_tokenfactory",
                         feature = "cosmwasm_tokenfactory",
-                        feature = "thorchain_tokenfactory"
                     ))]
                     if let Some(metadata) = token.metadata {
                         // The first denom_unit must be the same as the tf and base denom.
