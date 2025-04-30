@@ -1,6 +1,10 @@
 [package]
 name = "dao-pre-propose-approval-multiple"
-authors = ["ekez <ekez@withoutdoing.com>", "Jake Hartnell <no-reply@no-reply.com>", "noah <noah@daodao.zone>"]
+authors = [
+    "ekez <ekez@withoutdoing.com>",
+    "Jake Hartnell <no-reply@no-reply.com>",
+    "noah <noah@daodao.zone>",
+]
 description = "A DAO DAO pre-propose module handling a proposal approval flow for for dao-proposal-multiple."
 edition = { workspace = true }
 license = { workspace = true }
@@ -11,10 +15,7 @@ version = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [features]
-# for more explicit tests, cargo test --features=backtraces
-backtraces = ["cosmwasm-std/backtraces"]
-# use library feature to disable all instantiate/execute/query exports
-library = []
+
 
 [dependencies]
 cosmwasm-std = { workspace = true }

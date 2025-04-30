@@ -11,9 +11,7 @@ version = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [features]
-backtraces = ["cosmwasm-std/backtraces"]
-# use library feature to disable all instantiate/execute/query exports
-library = []
+
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -23,7 +21,7 @@ cw-controllers = { workspace = true }
 cw-hooks = { workspace = true }
 cw20 = { workspace = true }
 cw-utils = { workspace = true }
-cw20-base = { workspace = true, features = ["library"] }
+cw20-base = { workspace = true }
 cw2 = { workspace = true }
 thiserror = { workspace = true }
 cw-paginate-storage = { workspace = true }
@@ -31,7 +29,7 @@ cw-ownable = { workspace = true }
 dao-hooks = { workspace = true }
 dao-voting = { workspace = true }
 
-cw20-stake-v1 = { workspace = true, features = ["library"] }
+cw20-stake-v1 = { workspace = true }
 cw-utils-v1 = { workspace = true }
 cw-orch = { workspace = true }
 

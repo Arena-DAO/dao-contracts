@@ -11,10 +11,7 @@ version = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [features]
-# for more explicit tests, cargo test --features=backtraces
-backtraces = ["cosmwasm-std/backtraces"]
-# use library feature to disable all instantiate/execute/query exports
-library = []
+
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -45,6 +42,6 @@ cw-hooks = { workspace = true }
 dao-dao-core-v241 = { workspace = true }
 dao-interface-v241 = { workspace = true }
 dao-pre-propose-single-v241 = { workspace = true }
-dao-proposal-single-v241  = { workspace = true }
+dao-proposal-single-v241 = { workspace = true }
 dao-voting-cw4-v241 = { workspace = true }
 dao-voting-v241 = { workspace = true }

@@ -11,13 +11,9 @@ version = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [features]
-# for more explicit tests, cargo test --features=backtraces
-backtraces = ["cosmwasm-std/backtraces"]
-# use library feature to disable all instantiate/execute/query exports
-library = []
 
 [dependencies]
-cosmwasm-std = { workspace = true, features = ["ibc3"] }
+cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-storage-plus = { workspace = true }
 cw2 = { workspace = true }
@@ -28,7 +24,7 @@ thiserror = { workspace = true }
 dao-interface = { workspace = true }
 dao-dao-macros = { workspace = true }
 cw-paginate-storage = { workspace = true }
-cw-core-v1 = { workspace = true, features = ["library"] }
+cw-core-v1 = { workspace = true }
 
 [dev-dependencies]
 abstract-cw-plus-interface = "2.0.1"

@@ -1,6 +1,10 @@
 [package]
 name = "dao-pre-propose-multiple"
-authors = ["ekez <zekemedley@gmail.com>", "Jake Hartnell <meow@no-reply.com>", "blue-note"]
+authors = [
+    "ekez <zekemedley@gmail.com>",
+    "Jake Hartnell <meow@no-reply.com>",
+    "blue-note",
+]
 description = "A DAO DAO pre-propose module for dao-proposal-multiple for native and cw20 deposits."
 edition = { workspace = true }
 license = { workspace = true }
@@ -11,10 +15,7 @@ version = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [features]
-# for more explicit tests, cargo test --features=backtraces
-backtraces = ["cosmwasm-std/backtraces"]
-# use library feature to disable all instantiate/execute/query exports
-library = []
+
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -44,6 +45,6 @@ dao-hooks = { workspace = true }
 dao-dao-core-v241 = { workspace = true }
 dao-interface-v241 = { workspace = true }
 dao-pre-propose-multiple-v241 = { workspace = true }
-dao-proposal-multiple-v241  = { workspace = true }
+dao-proposal-multiple-v241 = { workspace = true }
 dao-voting-cw4-v241 = { workspace = true }
 dao-voting-v241 = { workspace = true }
