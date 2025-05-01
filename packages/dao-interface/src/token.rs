@@ -1,11 +1,26 @@
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Binary, Uint128};
 
-// These are Cosmos Proto types used for Denom Metadata.
-// We re-export them here for convenience.
-pub use osmosis_std::types::cosmos::bank::v1beta1::{DenomUnit, Metadata};
-
 use crate::state::ModuleInstantiateCallback;
+
+#[cw_serde]
+pub struct DenomUnit {
+    pub denom: String,
+    pub exponent: u32,
+    pub aliases: Vec<String>,
+}
+
+#[cw_serde]
+pub struct Metadata {
+    pub description: String,
+    pub denom_units: Vec<DenomUnit>,
+    pub base: String,
+    pub display: String,
+    pub name: String,
+    pub symbol: String,
+    pub uri: String,
+    pub uri_hash: String,
+}
 
 #[cw_serde]
 pub struct InitialBalance {

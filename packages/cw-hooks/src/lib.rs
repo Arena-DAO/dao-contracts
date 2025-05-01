@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, CustomQuery, Deps, StdError, StdResult, Storage, SubMsg};
-use cw_storage_plus::Item;
+use cw_storage_plus::{Item, Namespace};
 
 #[cw_serde]
 pub struct HooksResponse {
@@ -24,11 +24,11 @@ pub enum HookError {
 }
 
 // store all hook addresses in one item. We cannot have many of them before the contract becomes unusable anyway.
-pub struct Hooks<'a>(Item<'a, Vec<Addr>>);
+pub struct Hooks(Item<Vec<Addr>>);
 
-impl<'a> Hooks<'a> {
-    pub const fn new(storage_key: &'a str) -> Self {
-        Hooks(Item::new(storage_key))
+impl Hooks {
+    pub fn new(storage_key: impl Into<Namespace>) -> Self {
+        Hooks(Item::new_dyn(storage_key))
     }
 
     pub fn add_hook(&self, storage: &mut dyn Storage, addr: Addr) -> Result<(), HookError> {
@@ -191,7 +191,7 @@ mod tests {
 
         // Query hooks returns all hooks added
         let HooksResponse { hooks: the_hooks } = hooks.query_hooks(deps.as_ref()).unwrap();
-        assert_eq!(the_hooks, vec![addr!("meow")]);
+        assert_eq!(the_hooks, vec!["meow".to_string()]);
 
         // Remove last hook
         hooks.remove_hook(&mut deps.storage, addr!("meow")).unwrap();

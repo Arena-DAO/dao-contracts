@@ -1,8 +1,7 @@
-use std::cmp::min;
-
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{to_json_binary, Addr, CosmosMsg, StdError, Uint128, WasmMsg};
+use std::cmp::min;
 
 use crate::error::ContractError;
 use crate::msg::{ExecuteMsg, InfoResponse, InstantiateMsg, MigrateMsg, QueryMsg};

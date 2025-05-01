@@ -11,7 +11,7 @@ version = { workspace = true }
 crate-type = ["cdylib", "rlib"]
 
 [features]
-
+library = []
 
 [dependencies]
 cosmwasm-std = { workspace = true }
@@ -29,4 +29,3 @@ cw-orch.workspace = true
 [dev-dependencies]
 dao-voting-cw4 = { workspace = true }
 cw-multi-test = { workspace = true }
-dao-testing = { workspace = true }
