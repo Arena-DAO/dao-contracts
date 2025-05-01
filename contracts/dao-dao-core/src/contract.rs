@@ -916,15 +916,15 @@ pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, Co
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         PROPOSAL_MODULE_REPLY_ID => {
-            let bytes = &msg
-                .result
-                .into_result()
-                .map_err(StdError::generic_err)?
-                .msg_responses[0]
-                .clone()
-                .value
-                .to_vec();
+            let response = msg.result.into_result().map_err(StdError::generic_err)?;
+            #[allow(deprecated)]
+            let bytes = response
+                .data
+                .as_ref()
+                .map(|x| x.as_slice())
+                .unwrap_or_else(|| response.msg_responses[0].value.as_slice());
             let res = parse_instantiate_response_data(bytes)?;
+
             let prop_module_addr = deps.api.addr_validate(&res.contract_address)?;
             let total_module_count = TOTAL_PROPOSAL_MODULE_COUNT.load(deps.storage)?;
 
@@ -956,15 +956,15 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
         }
 
         VOTE_MODULE_INSTANTIATE_REPLY_ID => {
-            let bytes = &msg
-                .result
-                .into_result()
-                .map_err(StdError::generic_err)?
-                .msg_responses[0]
-                .clone()
-                .value
-                .to_vec();
+            let response = msg.result.into_result().map_err(StdError::generic_err)?;
+            #[allow(deprecated)]
+            let bytes = response
+                .data
+                .as_ref()
+                .map(|x| x.as_slice())
+                .unwrap_or_else(|| response.msg_responses[0].value.as_slice());
             let res = parse_instantiate_response_data(bytes)?;
+
             let vote_module_addr = deps.api.addr_validate(&res.contract_address)?;
             let current = VOTING_MODULE.may_load(deps.storage)?;
 
@@ -989,15 +989,15 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
                 .add_messages(callback_msgs))
         }
         VOTE_MODULE_UPDATE_REPLY_ID => {
-            let bytes = &msg
-                .result
-                .into_result()
-                .map_err(StdError::generic_err)?
-                .msg_responses[0]
-                .clone()
-                .value
-                .to_vec();
+            let response = msg.result.into_result().map_err(StdError::generic_err)?;
+            #[allow(deprecated)]
+            let bytes = response
+                .data
+                .as_ref()
+                .map(|x| x.as_slice())
+                .unwrap_or_else(|| response.msg_responses[0].value.as_slice());
             let res = parse_instantiate_response_data(bytes)?;
+
             let vote_module_addr = deps.api.addr_validate(&res.contract_address)?;
 
             VOTING_MODULE.save(deps.storage, &vote_module_addr)?;

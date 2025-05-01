@@ -190,15 +190,15 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         INSTANTIATE_GROUP_REPLY_ID => {
-            let bytes = &msg
-                .result
-                .into_result()
-                .map_err(StdError::generic_err)?
-                .msg_responses[0]
-                .clone()
-                .value
-                .to_vec();
+            let response = msg.result.into_result().map_err(StdError::generic_err)?;
+            #[allow(deprecated)]
+            let bytes = response
+                .data
+                .as_ref()
+                .map(|x| x.as_slice())
+                .unwrap_or_else(|| response.msg_responses[0].value.as_slice());
             let res = parse_instantiate_response_data(bytes);
+
             match res {
                 Ok(res) => {
                     let group_contract = GROUP_CONTRACT.may_load(deps.storage)?;
