@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use cosmwasm_std::{
     from_json,
     testing::{mock_dependencies, mock_env, mock_info},

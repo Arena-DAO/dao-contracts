@@ -223,6 +223,7 @@ impl CheckedDepositInfo {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(test)]
 pub mod tests {
     use cosmwasm_std::{coin, coins, testing::mock_info, BankMsg};

@@ -27,9 +27,9 @@ dao-dao-macros = { workspace = true }
 cw-paginate-storage = { workspace = true }
 
 [dev-dependencies]
-abstract-cw-plus-interface = "2.0.1"
-abstract-cw20 = "2.0.0"
-abstract-cw20-base = "2.0.0"
+abstract-cw-plus-interface = "3.0.0"
+abstract-cw20 = "3.0.0"
+abstract-cw20-base = "3.0.0"
 dao-dao-core = { workspace = true }
 cw-multi-test = { workspace = true }
 cw-orch = { workspace = true }

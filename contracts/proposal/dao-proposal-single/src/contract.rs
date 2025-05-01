@@ -2,12 +2,12 @@
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
     to_json_binary, Addr, Attribute, Binary, Deps, DepsMut, Env, MessageInfo, Order, Reply,
-    Response, StdResult, Storage, SubMsg, WasmMsg,
+    Response, StdError, StdResult, Storage, SubMsg, WasmMsg,
 };
-use cw2::{get_contract_version, set_contract_version, ContractVersion};
+use cw2::set_contract_version;
 use cw_hooks::Hooks;
 use cw_storage_plus::Bound;
-use cw_utils::{parse_reply_instantiate_data, Duration};
+use cw_utils::{parse_instantiate_response_data, Duration};
 use dao_hooks::proposal::{
     new_proposal_hooks, proposal_completed_hooks, proposal_status_changed_hooks,
 };
@@ -32,9 +32,6 @@ use dao_voting::voting::{
 use crate::msg::MigrateMsg;
 use crate::proposal::{next_proposal_id, SingleChoiceProposal};
 use crate::state::{Config, CREATION_POLICY, DELEGATION_MODULE};
-use crate::v1_state::{
-    v1_duration_to_v2, v1_expiration_to_v2, v1_status_to_v2, v1_threshold_to_v2, v1_votes_to_v2,
-};
 use crate::{
     error::ContractError,
     msg::{ExecuteMsg, InstantiateMsg, QueryMsg},
@@ -43,7 +40,6 @@ use crate::{
     query::{ProposalResponse, VoteInfo, VoteListResponse, VoteResponse},
     state::{Ballot, BALLOTS, CONFIG, PROPOSALS, PROPOSAL_COUNT, PROPOSAL_HOOKS, VOTE_HOOKS},
 };
-use cw_proposal_single_v1 as v1;
 pub(crate) const CONTRACT_NAME: &str = "crates.io:dao-proposal-single";
 pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
@@ -420,7 +416,7 @@ pub fn execute_execute(
                 .ok_or(VetoError::NoVetoConfiguration {})?;
 
             // check that the sender is the vetoer
-            if veto_config.vetoer != info.sender {
+            if veto_config.vetoer != info.sender.to_string() {
                 // if the sender can normally execute, but is not the vetoer,
                 // return timelocked error. otherwise return unauthorized.
                 if sender_can_execute {
@@ -1044,102 +1040,11 @@ pub fn query_info(deps: Deps) -> StdResult<Binary> {
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn migrate(deps: DepsMut, _env: Env, msg: MigrateMsg) -> Result<Response, ContractError> {
-    let ContractVersion { version, .. } = get_contract_version(deps.storage)?;
     set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     match msg {
-        MigrateMsg::FromV1 {
-            close_proposal_on_execution_failure,
-            pre_propose_info,
-            veto,
-        } => {
-            // `CONTRACT_VERSION` here is from the data section of the
-            // blob we are migrating to. `version` is from storage. If
-            // the version in storage matches the version in the blob
-            // we are not upgrading.
-            if version == CONTRACT_VERSION {
-                return Err(ContractError::AlreadyMigrated {});
-            }
-
-            let current_config = v1::state::CONFIG.load(deps.storage)?;
-            let max_voting_period = v1_duration_to_v2(current_config.max_voting_period);
-
-            // if veto is configured, validate its fields
-            if let Some(veto_config) = &veto {
-                veto_config.validate(&deps.as_ref(), &max_voting_period)?;
-            };
-
-            // Update the stored config to have the new
-            // `close_proposal_on_execution_failure` field.
-            CONFIG.save(
-                deps.storage,
-                &Config {
-                    threshold: v1_threshold_to_v2(current_config.threshold),
-                    max_voting_period,
-                    min_voting_period: current_config.min_voting_period.map(v1_duration_to_v2),
-                    only_members_execute: current_config.only_members_execute,
-                    allow_revoting: current_config.allow_revoting,
-                    dao: current_config.dao.clone(),
-                    close_proposal_on_execution_failure,
-                    veto,
-                },
-            )?;
-
-            let (initial_policy, pre_propose_messages) =
-                pre_propose_info.into_initial_policy_and_messages(current_config.dao)?;
-            CREATION_POLICY.save(deps.storage, &initial_policy)?;
-
-            // Update the module's proposals to v2.
-
-            let current_proposals = v1::state::PROPOSALS
-                .range(deps.storage, None, None, Order::Ascending)
-                .collect::<StdResult<Vec<(u64, v1::proposal::Proposal)>>>()?;
-
-            // Based on gas usage testing, we estimate that we will be
-            // able to migrate ~4200 proposals at a time before
-            // reaching the block max_gas limit.
-            current_proposals
-                .into_iter()
-                .try_for_each::<_, Result<_, ContractError>>(|(id, prop)| {
-                    if prop
-                        .deposit_info
-                        .map(|info| !info.deposit.is_zero())
-                        .unwrap_or(false)
-                        && prop.status != voting_v1::Status::Closed
-                        && prop.status != voting_v1::Status::Executed
-                    {
-                        // No migration path for outstanding
-                        // deposits.
-                        return Err(ContractError::PendingProposals {});
-                    }
-
-                    let migrated_proposal = SingleChoiceProposal {
-                        title: prop.title,
-                        description: prop.description,
-                        proposer: prop.proposer,
-                        start_height: prop.start_height,
-                        min_voting_period: prop.min_voting_period.map(v1_expiration_to_v2),
-                        expiration: v1_expiration_to_v2(prop.expiration),
-                        threshold: v1_threshold_to_v2(prop.threshold),
-                        total_power: prop.total_power,
-                        msgs: prop.msgs,
-                        status: v1_status_to_v2(prop.status),
-                        votes: v1_votes_to_v2(prop.votes.clone()),
-                        individual_votes: v1_votes_to_v2(prop.votes),
-                        allow_revoting: prop.allow_revoting,
-                        veto: None,
-                        delegation_module: None,
-                    };
-
-                    PROPOSALS
-                        .save(deps.storage, id, &migrated_proposal)
-                        .map_err(|e| e.into())
-                })?;
-
-            Ok(Response::default()
-                .add_attribute("action", "migrate")
-                .add_attribute("from", "v1")
-                .add_submessages(pre_propose_messages))
+        MigrateMsg::FromV1 { .. } => {
+            unimplemented!();
         }
         MigrateMsg::FromCompatible {} => Ok(Response::default()
             .add_attribute("action", "migrate")
@@ -1177,7 +1082,15 @@ pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractE
             Ok(Response::new().add_attribute("removed_vote_hook", format!("{addr}:{idx}")))
         }
         TaggedReplyId::PreProposeModuleInstantiation => {
-            let res = parse_reply_instantiate_data(msg)?;
+            let bytes = &msg
+                .result
+                .into_result()
+                .map_err(StdError::generic_err)?
+                .msg_responses[0]
+                .clone()
+                .value
+                .to_vec();
+            let res = parse_instantiate_response_data(bytes)?;
 
             let module = deps.api.addr_validate(&res.contract_address)?;
             CREATION_POLICY.save(

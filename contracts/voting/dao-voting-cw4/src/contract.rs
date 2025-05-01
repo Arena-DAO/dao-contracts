@@ -1,12 +1,12 @@
 #[cfg(not(feature = "library"))]
 use cosmwasm_std::entry_point;
 use cosmwasm_std::{
-    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdResult, SubMsg,
-    Uint128,
+    to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Reply, Response, StdError, StdResult,
+    SubMsg, Uint128,
 };
 use cw2::{get_contract_version, set_contract_version, ContractVersion};
 use cw4::{MemberListResponse, MemberResponse, TotalWeightResponse};
-use cw_utils::parse_reply_instantiate_data;
+use cw_utils::parse_instantiate_response_data;
 use dao_interface::state::{Admin, ModuleInstantiateInfo};
 
 use crate::error::ContractError;
@@ -190,7 +190,15 @@ pub fn migrate(deps: DepsMut, _env: Env, _msg: MigrateMsg) -> Result<Response, C
 pub fn reply(deps: DepsMut, _env: Env, msg: Reply) -> Result<Response, ContractError> {
     match msg.id {
         INSTANTIATE_GROUP_REPLY_ID => {
-            let res = parse_reply_instantiate_data(msg);
+            let bytes = &msg
+                .result
+                .into_result()
+                .map_err(StdError::generic_err)?
+                .msg_responses[0]
+                .clone()
+                .value
+                .to_vec();
+            let res = parse_instantiate_response_data(bytes);
             match res {
                 Ok(res) => {
                     let group_contract = GROUP_CONTRACT.may_load(deps.storage)?;

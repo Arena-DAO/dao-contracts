@@ -4,7 +4,7 @@ use thiserror::Error;
 
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, CustomQuery, Deps, StdError, StdResult, Storage, SubMsg};
-use cw_storage_plus::{Item, Namespace};
+use cw_storage_plus::Item;
 
 #[cw_serde]
 pub struct HooksResponse {
@@ -27,8 +27,8 @@ pub enum HookError {
 pub struct Hooks(Item<Vec<Addr>>);
 
 impl Hooks {
-    pub fn new(storage_key: impl Into<Namespace>) -> Self {
-        Hooks(Item::new_dyn(storage_key))
+    pub const fn new(storage_key: &'static str) -> Self {
+        Hooks(Item::new(storage_key))
     }
 
     pub fn add_hook(&self, storage: &mut dyn Storage, addr: Addr) -> Result<(), HookError> {

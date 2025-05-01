@@ -7,7 +7,6 @@ use cw_multi_test::{next_block, App, Executor};
 use dao_interface::voting::{
     InfoResponse, TotalPowerAtHeightResponse, VotingPowerAtHeightResponse,
 };
-use dao_testing::contracts::{cw4_group_contract, dao_voting_cw4_contract};
 
 use crate::{
     contract::{migrate, CONTRACT_NAME, CONTRACT_VERSION},
