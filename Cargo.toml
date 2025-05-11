@@ -86,8 +86,8 @@ tokio = "1.40.0"
 cw-ownable = "2.1.0"
 
 # cw-nfts
-cw721 = { git = "https://github.com/public-awesome/cw-nfts" }
-cw721-base = { git = "https://github.com/public-awesome/cw-nfts" }
+cw721 = { git = "https://github.com/Arena-DAO/cw-nfts" }
+cw721-base = { git = "https://github.com/Arena-DAO/cw-nfts" }
 
 dao-interface = { path = "./packages/dao-interface" }
 dao-cw-orch = { path = "./packages/cw-orch" }
