@@ -46,7 +46,7 @@ cosm-orc = { version = "4.0" }
 cosm-tome = "0.2"
 cosmos-sdk-proto = { version = "0.27.0", features = ['serde'] }
 cosmwasm-schema = { version = "2.2.2" }
-cosmwasm-std = { version = "2.2.2" }
+cosmwasm-std = { version = "2.2.2", features = ["cosmwasm_1_2"] }
 cw-controllers = "2.0.0"
 cw-multi-test = { version = "2.4.0" }
 cw-storage-plus = { version = "2.0.0" }
